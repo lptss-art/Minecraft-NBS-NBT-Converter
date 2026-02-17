@@ -1,0 +1,26 @@
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Profils IPython
+profile_default/
+ipython_config.py
+
+# Fichiers de données volumineux (à adapter selon vos besoins)
+*.csv
+*.json
+*.sqlite
+*.pkl
+*.nbs
+*.nbt
+
+# Environnement virtuel
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+
+# Configuration locale et secrets
+.env
+.ipynb_checkpoints/
