@@ -32,21 +32,21 @@ pip install pandas numpy nbt PyQt5 jupyter
 
 ### 1. Generating Minecraft Structures (Main Workflow)
 
-The core logic for generating the Minecraft build resides in **`Nouveau Layout.ipynb`**.
+The core logic for generating the Minecraft build resides in **`Generator_Optimise.ipynb`**.
 
-1.  **Open the Notebook:** Launch Jupyter and open `Nouveau Layout.ipynb`.
+1.  **Open the Notebook:** Launch Jupyter and open `Generator_Optimise.ipynb`.
 2.  **Configure Settings:**
-    *   **Input File:** Set the `file` variable to your `.nbs` file path (e.g., `in/mysong.nbs`).
+    *   **Input File:** Set the `file_in` variable to your `.nbs` file path (e.g., `in/mysong.nbs`).
     *   **Tempo:** Adjust `tick_s` to match the song's tempo (ideally 20 ticks/second for best results).
 3.  **Customize Decoration:**
-    *   Locate the "Definition des blocs de la décoration" section.
-    *   Modify lists like `flowers`, `blocs` (building blocks), `deco` (functional blocks like lanterns), and `bloc_sol` (floor blocks) to change the visual style of the generated structure.
+    *   Locate the "Configuration de la Décoration" section.
+    *   Modify lists like `flowers`, `floor_blocks` (building blocks), `ceiling_deco` (functional blocks like lanterns) to change the visual style of the generated structure.
 4.  **Run the Notebook:** Execute the cells. The script will:
     *   Read and process the NBS data.
     *   Place note blocks, floor blocks, and decorations based on your configuration.
     *   Generate multiple `.nbt` files in the `out/` directory.
 5.  **Output Files:**
-    *   `test0.nbt`, `testX.nbt`: Segments of the song (note blocks).
+    *   `song_part_X.nbt`: Segments of the song (note blocks).
     *   `base.nbt`: The rail line and redstone activation system.
     *   `start.nbt`: A structure to initialize the playback.
 
