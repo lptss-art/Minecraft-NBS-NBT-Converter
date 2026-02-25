@@ -6,32 +6,25 @@ from ReadNBS import read_nbs, write_nbs
 
 class Note:
     """Represents a single note in the music."""
-    def __init__(self, x=0, y=0):
-        self.note = x
-        self.instr = y
+    def __init__(self, key=0, instrument=0):
+        self.note = key
+        self.instr = instrument
 
-    # def write(self, nbt_file, x, y, z):
-    #     # Legacy/Unused code requiring external functions
-    #     pass
-
-def prep_data(df, tick_s, tick_offset=0, decoupe_tick=True, ajuster_vitesse=True):
+def prep_data(df, ticks_per_second, tick_offset=0, split_ticks=True, adjust_speed=True):
     """
     Prepares the dataframe for NBT generation by calculating real ticks and handling timing.
 
     Args:
         df (pd.DataFrame): Input dataframe.
-        tick_s (float): Ticks per second (tempo).
+        ticks_per_second (float): Ticks per second (tempo).
         tick_offset (int): Offset in ticks.
-        decoupe_tick (bool): Whether to split ticks.
-        ajuster_vitesse (bool): Whether to adjust speed.
+        split_ticks (bool): Whether to split ticks.
+        adjust_speed (bool): Whether to adjust speed.
 
     Returns:
         pd.DataFrame: Processed dataframe ready for layout.
     """
-    # tick_multiplier calculation (10 ticks/sec default for NBS?)
-    # Adjusting to Minecraft Redstone ticks (10 redstone ticks = 1 second? No, 10 rs ticks = 1 sec. 20 game ticks = 1 sec)
-    # NBS usually stores ticks.
-    tick_multiplier = 10 / tick_s
+    tick_multiplier = 10 / ticks_per_second
     df['real tick'] = df['tick'] * tick_multiplier
 
     # Process data format
@@ -51,8 +44,11 @@ def prep_data(df, tick_s, tick_offset=0, decoupe_tick=True, ajuster_vitesse=True
         ticks.append(tick)
     data['note'] = ticks
 
-    if len(data.nb.values) > 0:
-        data.nb.values[-1] = len(data.note.values[-1])
+    if len(data) > 0:
+        # data.nb.values[-1] is read-only sometimes, use loc
+        last_index = data.index[-1]
+        last_note_count = len(data.loc[last_index, 'note'])
+        data.loc[last_index, 'nb'] = last_note_count
 
     # Subtract 1 from all half ticks (piston takes 1.5 ticks to launch, so launch early)
     new_tick = []
@@ -96,7 +92,7 @@ def prep_data(df, tick_s, tick_offset=0, decoupe_tick=True, ajuster_vitesse=True
         else:
             row['note entier'] = data.iloc[i]["note"]
 
-        if decoupe_tick:
+        if split_ticks:
             while tick_entier - last_tick > 4:
                 last_tick += 4
                 row_inter = {'note entier': None, 'note demi': None, 'block number': block_number}
@@ -115,7 +111,7 @@ def prep_data(df, tick_s, tick_offset=0, decoupe_tick=True, ajuster_vitesse=True
 
     for i in range(len(new_data.index) - 1):
         delta = new_data.iloc[i]['block number souhaité'] - new_data.iloc[i]['block number'] - block_number_added
-        if delta > 0 and ajuster_vitesse:
+        if delta > 0 and adjust_speed:
             if new_data.index[i] + 1 != new_data.index[i+1]:
                 row_inter = {'note entier': None, 'note demi': None, 'block number': 0, 'block number souhaité': 0}
                 new_data_adjusted.loc[new_data.index[i] + 1] = row_inter
@@ -186,10 +182,8 @@ class MusicData:
         if current_tempo == 0:
             return []
 
-        # Calculation logic from original code
         closest_delay = int(np.floor(1 / (current_tempo / 4) * 100 // 5) * 5)
         delays = [closest_delay - 5, closest_delay, closest_delay + 5]
-        # Avoid division by zero
         delays = [d for d in delays if d != 0]
 
         self.tempos = [100 / d * 4 for d in delays]
@@ -209,11 +203,8 @@ class MusicData:
     
     def speed_up(self, tick_second):
         """Resamples the song ticks to match a target ticks/second rate."""
-        # This creates 'new_data' which seems to be the one to be saved
         if self.data is not None:
-            # We copy data to new_data if not exists or start fresh
             self.new_data = self.data.copy()
-            # Calculate new tick positions
             self.new_data['real tick'] = [math.ceil(a * 20 / tick_second) for a in self.new_data['tick']]
             self.final_layer_adjustment()
 
@@ -223,7 +214,7 @@ class MusicData:
             self.data['octave'] = self.data['key'] // 12
             self.data['note'] = self.data['key'] % 12
             self.data['real tick'] = self.data['tick']
-            self.new_data = self.data.copy() # Initialize new_data
+            self.new_data = self.data.copy()
 
     def adjust_layers(self):
         """Ensures layers are sequential per tick."""
@@ -238,7 +229,7 @@ class MusicData:
                     self.data.at[i, 'layer'] = layer
                 layer += 1
 
-    def modify_instrument_data(self, modifier):
+    def modify_instrument_data(self, modifier_matrix):
         """
         Modifies instruments and keys based on a modifier matrix (octave x instrument).
         """
@@ -255,24 +246,20 @@ class MusicData:
         tick = 0
         layer = 0
 
-        # Iterate over original data
         for i in range(self.data.shape[0]):
             if self.data.iloc[i]['tick'] > tick:
                 tick = self.data.iloc[i]['tick']
                 layer = 0
 
-            # modifier seems to be 8x13 matrix (octaves -3 to 4 mapped to indices)
-            for instr_i in range(13):
+            for instrument_index in range(13):
                 note = self.data.iloc[i].copy()
                 octave = max(-3, min(note['octave'], 4))
 
-                # Check if this instrument/octave combination is selected in the modifier
-                if modifier[octave+3, instr_i]:
-                    instrument_name = list(octave_instruments.keys())[instr_i]
+                if modifier_matrix[octave+3, instrument_index]:
+                    instrument_name = list(octave_instruments.keys())[instrument_index]
                     note['insts'] = nbs_instruments[instrument_name]
                     instr_octave = octave_instruments[instrument_name]
 
-                    # Adjust key based on target instrument octave
                     if instr_octave < octave:
                         note['key'] = note['note'] + 12
                     elif instr_octave + 1 == octave:
@@ -292,7 +279,6 @@ class MusicData:
         if self.new_data is not None and not self.new_data.empty:
             tick = 0
             layer = 0
-            # Ensure sorting by real tick first
             self.new_data = self.new_data.sort_values(by=['real tick'])
 
             for i in range(self.new_data.shape[0]):

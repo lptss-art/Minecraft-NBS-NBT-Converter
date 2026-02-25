@@ -67,10 +67,14 @@ To run the GUI:
 python Main_ui.py
 ```
 
-### 3. Other Tools
+### 3. Testing
 
-*   **`main_ui_nbt.py`**: A secondary GUI intended for NBT generation tasks (currently less feature-rich than the notebooks).
-*   **`Tests.ipynb`**: Contains unit tests and experiments for the data structures.
+The project includes a functional test suite to verify the integrity of the data processing and NBT generation.
+
+To run the tests:
+```bash
+python test_project.py
+```
 
 ## Project Structure
 
@@ -81,3 +85,4 @@ python Main_ui.py
 *   **`Layout2.py`**: Logic for the physical layout of note blocks and redstone.
 *   **`data.py`**: Data container classes for block information.
 *   **`NBS_UI.py` / `NBT_UI.py`**: Source code for the graphical interfaces.
+*   **`test_project.py`**: Unit and functional tests.

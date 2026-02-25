@@ -60,112 +60,111 @@ class CustomNBT:
         """Writes the NBT file to disk."""
         self.nbtfile.write_file(filename)
         
-    def add_palette(self, name, prop=None):
+    def add_palette(self, name, properties=None):
         """Adds a block to the palette."""
-        pal = TAG_Compound()
-        pal['Name'] = TAG_String(name)
+        palette_entry = TAG_Compound()
+        palette_entry['Name'] = TAG_String(name)
 
-        if prop is not None:
-            pal['Properties'] = TAG_Compound()
-            for key in prop.keys():
-                pal['Properties'][key] = TAG_String(str(prop[key]))
+        if properties is not None:
+            palette_entry['Properties'] = TAG_Compound()
+            for key in properties.keys():
+                palette_entry['Properties'][key] = TAG_String(str(properties[key]))
 
-        self.nbtfile['palette'].append(pal)
+        self.nbtfile['palette'].append(palette_entry)
         
-    def get_index_safe(self, bloc_name="air", prop=None):
+    def get_index_safe(self, block_name="air", properties=None):
         """
         Gets the index of a block in the palette, adding it if necessary.
-        Renamed from Index to get_index_safe to avoid confusion with GetIndex.
         """
-        if prop is not None:
-            return self.get_index("minecraft:" + bloc_name, prop)
+        if properties is not None:
+            return self.get_index("minecraft:" + block_name, properties)
         else:
-            if bloc_name in self.custom_index.keys():
-                return self.custom_index[bloc_name]
+            if block_name in self.custom_index.keys():
+                return self.custom_index[block_name]
             else:
-                self.custom_index[bloc_name] = self.get_index("minecraft:" + bloc_name, prop)
-                return self.custom_index[bloc_name]
+                self.custom_index[block_name] = self.get_index("minecraft:" + block_name, properties)
+                return self.custom_index[block_name]
                 
-    def get_index(self, name, prop=None):
+    def get_index(self, name, properties=None):
         """Gets the index of a block state in the palette."""
         for i in range(len(self.nbtfile['palette'])):
-            pal = self.nbtfile['palette'][i]
-            if pal["Name"].value == name:
-                if prop is None:
+            palette_entry = self.nbtfile['palette'][i]
+            if palette_entry["Name"].value == name:
+                if properties is None:
                     return i
-                correct_prop = True
-                if 'Properties' in pal:
-                    for key in prop:
-                        if key not in pal['Properties'] or pal['Properties'][key].value != prop[key]:
-                            correct_prop = False
+                correct_properties = True
+                if 'Properties' in palette_entry:
+                    for key in properties:
+                        if key not in palette_entry['Properties'] or palette_entry['Properties'][key].value != properties[key]:
+                            correct_properties = False
                             break
                 else:
-                    correct_prop = False # Prop provided but palette has none
+                    correct_properties = False # Properties provided but palette has none
 
-                if correct_prop:
+                if correct_properties:
                     return i
 
-        self.add_palette(name, prop)
-        return self.get_index(name, prop)
+        self.add_palette(name, properties)
+        return self.get_index(name, properties)
     
-    def get_rotation_index(self, i, sym=False):
+    def get_rotation_index(self, rotations, is_symmetric=False):
         """Calculates rotation mapping for block states."""
-        correspondance = {}
+        correspondence = {}
         
         directions = {'north': 0, 'east': 1, 'south': 2, 'west': 3}
         directions_i = {0: 'north', 1: 'east', 2: 'south', 3: 'west'}
         
         old_index = -1
-        for pal in self.nbtfile['palette']:
+        for palette_entry in self.nbtfile['palette']:
             old_index += 1
-            if 'Properties' in pal:
-                if 'facing' in pal['Properties']:
+            if 'Properties' in palette_entry:
+                if 'facing' in palette_entry['Properties']:
                     props = {}
-                    for key in pal['Properties'].keys():
-                        props[key] = pal['Properties'][key].value
+                    for key in palette_entry['Properties'].keys():
+                        props[key] = palette_entry['Properties'][key].value
                         
                     direction = props['facing']
-                    if sym and (direction == 'east' or direction == 'west'):
+                    if is_symmetric and (direction == 'east' or direction == 'west'):
                         pass
                     else:
                         if direction in directions:
-                            props['facing'] = directions_i[(directions[direction] + i) % 4]
-                            new_index = self.get_index(pal["Name"].value, props)
-                            correspondance[old_index] = new_index
+                            props['facing'] = directions_i[(directions[direction] + rotations) % 4]
+                            new_index = self.get_index(palette_entry["Name"].value, props)
+                            correspondence[old_index] = new_index
                     
-        return correspondance
+        return correspondence
     
-    def add_block(self, pos, typ):
+    def add_block(self, position, block_state_id):
         """Adds a block to the structure."""
         block = TAG_Compound()
         block['pos'] = TAG_List(TAG_Int)
-        block['pos'].append(TAG_Int(value=int(pos[0])))
-        block['pos'].append(TAG_Int(value=int(pos[1])))
-        block['pos'].append(TAG_Int(value=int(pos[2])))
+        block['pos'].append(TAG_Int(value=int(position[0])))
+        block['pos'].append(TAG_Int(value=int(position[1])))
+        block['pos'].append(TAG_Int(value=int(position[2])))
 
-        block['state'] = TAG_Int(int(typ))
+        block['state'] = TAG_Int(int(block_state_id))
 
         self.nbtfile['blocks'].append(block)
         
-    def add_structure_block(self, pos, name, deltaX=0, deltaY=0, deltaZ=0):
+    def add_structure_block(self, position, name, delta_x=0, delta_y=0, delta_z=0):
         """Adds a structure block (Load mode)."""
-        typ = self.get_index_safe('structure_block', {'mode': 'load'})
+        block_state_id = self.get_index_safe('structure_block', {'mode': 'load'})
         
         block = TAG_Compound()
         block['pos'] = TAG_List(TAG_Int)
-        block['pos'].append(TAG_Int(value=int(pos[0])))
-        block['pos'].append(TAG_Int(value=int(pos[1])))
-        block['pos'].append(TAG_Int(value=int(pos[2])))
+        block['pos'].append(TAG_Int(value=int(position[0])))
+        block['pos'].append(TAG_Int(value=int(position[1])))
+        block['pos'].append(TAG_Int(value=int(position[2])))
 
-        block['state'] = TAG_Int(int(typ))
+        block['state'] = TAG_Int(int(block_state_id))
 
-        nbt = TAG_Compound()
-        nbt['name'] = TAG_String(name)
-        nbt['mode'] = TAG_String('LOAD')
-        nbt['posX'] = TAG_Int(value=deltaX)
-        nbt['posY'] = TAG_Int(value=deltaY) # Fixed typo posZ -> posY
-        nbt['posZ'] = TAG_Int(value=deltaZ)
-        block['nbt'] = nbt
+        nbt_data = TAG_Compound()
+        nbt_data['name'] = TAG_String(name)
+        nbt_data['mode'] = TAG_String('LOAD')
+        nbt_data['posX'] = TAG_Int(value=delta_x)
+        nbt_data['posY'] = TAG_Int(value=delta_y)
+        nbt_data['posZ'] = TAG_Int(value=delta_z)
+        block['nbt'] = nbt_data
                          
         self.nbtfile['blocks'].append(block)
         
