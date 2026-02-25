@@ -1,62 +1,83 @@
 # Minecraft NBS NBT Converter
 
-A Python tool for manipulating Minecraft Note Block Studio (.nbs) files and generating Minecraft structures (NBT) from them.
+A Python project for creating Minecraft Note Block songs from Note Block Studio (.nbs) files.
+
+While the project includes graphical user interfaces (GUIs), the **primary and most flexible way to use this tool is through Jupyter Notebooks**. These notebooks allow for deep customization of the generated Minecraft structures, including decoration and block placement.
 
 ## Features
 
-*   **NBS Manipulation:** Load, edit, and save `.nbs` files.
-*   **Tempo Adjustment:** Modify the song's tempo and adjust note timings accordingly.
-*   **Instrument Mapping:** Map instruments to different octaves and change instrument types.
-*   **NBT Generation:** Convert music to Minecraft note block structures using redstone logic (repeaters, pistons).
-*   **Drag and Drop:** Easily load files by dragging them into the application window.
+*   **NBS to NBT Conversion:** Convert musical data into Minecraft structure files (.nbt).
+*   **Deep Customization:** Use Jupyter Notebooks to define decoration blocks, floor materials, and structure layout.
+*   **Tempo Adjustment:** Modify song tempo to align with Minecraft's game ticks (essential for smooth playback).
+*   **Instrument Mapping:** Remap instruments to different octaves or block types to fit within Minecraft's limitations.
+*   **Structure Generation:** Automatically generates the redstone circuitry, rails, and structure blocks needed to play the song.
 
 ## Installation
 
-Ensure you have Python installed. You will need the following libraries:
+You will need Python installed along with the following libraries:
 
-*   PyQt5
-*   pandas
-*   numpy
-*   NBT (The `nbt` library)
+*   `pandas`
+*   `numpy`
+*   `nbt`
+*   `PyQt5` (for the GUIs)
+*   `jupyter` (to run the notebooks)
 
-You can install the dependencies using pip:
+Install dependencies via pip:
 
 ```bash
-pip install PyQt5 pandas numpy nbt
+pip install pandas numpy nbt PyQt5 jupyter
 ```
 
 ## Usage
 
-### NBS Editor
+### 1. Generating Minecraft Structures (Main Workflow)
 
-To launch the NBS editor interface:
+The core logic for generating the Minecraft build resides in **`Nouveau Layout.ipynb`**.
 
+1.  **Open the Notebook:** Launch Jupyter and open `Nouveau Layout.ipynb`.
+2.  **Configure Settings:**
+    *   **Input File:** Set the `file` variable to your `.nbs` file path (e.g., `in/mysong.nbs`).
+    *   **Tempo:** Adjust `tick_s` to match the song's tempo (ideally 20 ticks/second for best results).
+3.  **Customize Decoration:**
+    *   Locate the "Definition des blocs de la décoration" section.
+    *   Modify lists like `flowers`, `blocs` (building blocks), `deco` (functional blocks like lanterns), and `bloc_sol` (floor blocks) to change the visual style of the generated structure.
+4.  **Run the Notebook:** Execute the cells. The script will:
+    *   Read and process the NBS data.
+    *   Place note blocks, floor blocks, and decorations based on your configuration.
+    *   Generate multiple `.nbt` files in the `out/` directory.
+5.  **Output Files:**
+    *   `test0.nbt`, `testX.nbt`: Segments of the song (note blocks).
+    *   `base.nbt`: The rail line and redstone activation system.
+    *   `start.nbt`: A structure to initialize the playback.
+
+### 2. Pre-processing NBS Files
+
+Before generating the structure, you may need to adjust the NBS file itself.
+
+*   **`change tempo and instrum.ipynb`**: Use this notebook to:
+    *   Change the internal tempo of the NBS file.
+    *   Remap instruments (e.g., if notes are too low/high, switch instruments or shift octaves).
+*   **`Main_ui.py`**: A GUI alternative for modifying NBS files. It provides a visual interface for:
+    *   Loading NBS files.
+    *   Adjusting tempo.
+    *   Mapping instruments across octaves using a grid interface.
+
+To run the GUI:
 ```bash
 python Main_ui.py
 ```
 
-This interface allows you to:
-1.  Load an NBS file.
-2.  Adjust the tempo.
-3.  Modify instrument mappings across octaves.
-4.  Save the modified NBS file.
+### 3. Other Tools
 
-### NBT Generator (Work in Progress)
-
-To launch the NBT generator interface:
-
-```bash
-python main_ui_nbt.py
-```
-
-*Note: The NBT UI appears to be under development.*
+*   **`main_ui_nbt.py`**: A secondary GUI intended for NBT generation tasks (currently less feature-rich than the notebooks).
+*   **`Tests.ipynb`**: Contains unit tests and experiments for the data structures.
 
 ## Project Structure
 
-*   `Main_ui.py`: Entry point for the NBS editor UI.
-*   `main_ui_nbt.py`: Entry point for the NBT generator UI.
-*   `NBS_UI.py`: User interface code for NBS manipulation.
-*   `MusicData.py`: Core logic for handling music data and conversions.
-*   `ReadNBS.py`: Functions for reading and writing NBS files.
-*   `customNBT.py`: Helper class for generating NBT structures.
-*   `Layout2.py`: Logic for laying out note blocks in the NBT structure.
+*   **Notebooks (`.ipynb`)**: The heart of the project for configuration and generation.
+*   **`MusicData.py`**: Core class for handling music data processing.
+*   **`ReadNBS.py`**: Utilities for reading and writing `.nbs` binary files.
+*   **`customNBT.py`**: Helper class for creating and manipulating NBT data structures.
+*   **`Layout2.py`**: Logic for the physical layout of note blocks and redstone.
+*   **`data.py`**: Data container classes for block information.
+*   **`NBS_UI.py` / `NBT_UI.py`**: Source code for the graphical interfaces.
