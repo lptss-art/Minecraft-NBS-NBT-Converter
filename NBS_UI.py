@@ -95,7 +95,7 @@ class CheckboxGrid(QWidget):
                 row_checkboxes.append(checkbox)
             self.checkboxes.append(row_checkboxes)
         
-    def getCheckboxStates(self):
+    def get_checkbox_states(self):
         # Initialize an array to hold the state of each checkbox
         states = []
         for row_checkboxes in self.checkboxes:
@@ -224,11 +224,11 @@ class NBS_UI(QMainWindow):
 
     def save_data(self):
         # Here you can add additional code to save `checkbox_states` to a file or process it further
-        self.processor.modify_instrument_data(self.checkbox_grid.getCheckboxStates())
+        self.processor.modify_instrument_data(self.checkbox_grid.get_checkbox_states())
 
         # tempo change
         
-        self.processor.upadte_tempo(self.choose_tempo.currentIndex())
+        self.processor.update_tempo(self.choose_tempo.currentIndex())
         
         file_name = self.processor.write_nbs()
 
