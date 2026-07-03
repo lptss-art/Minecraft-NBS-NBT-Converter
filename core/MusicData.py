@@ -2,7 +2,7 @@ import pandas as pd
 import math
 import numpy as np
 import os
-from ReadNBS import read_nbs, write_nbs
+from core.ReadNBS import read_nbs, write_nbs
 
 class Note:
     """Represents a single note in the music."""

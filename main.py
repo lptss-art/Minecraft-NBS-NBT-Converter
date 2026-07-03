@@ -1,10 +1,9 @@
 import sys
 from PyQt5.QtWidgets import QApplication
-from NBT_UI import NBT_UI
-
+from ui.MainApp import MainApp
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = NBT_UI()
+    window = MainApp()
     window.show()
     sys.exit(app.exec_())
