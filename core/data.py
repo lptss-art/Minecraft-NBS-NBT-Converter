@@ -1,5 +1,5 @@
 import numpy as np
-from customNBT import CustomNBT
+from core.customNBT import CustomNBT
 from random import randint
 
 class Data:

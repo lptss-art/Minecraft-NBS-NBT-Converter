@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout, QL
                              QFileDialog, QVBoxLayout,QHBoxLayout, QCheckBox,QLineEdit,QComboBox,QGroupBox,QMessageBox,QTextEdit)
 from PyQt5.QtCore import pyqtSignal,Qt
 import os
-from MusicData import MusicData
+from core.MusicData import MusicData
 import numpy as np
 from datetime import datetime
 
@@ -104,7 +104,7 @@ class CheckboxGrid(QWidget):
         return np.array(states)
 
 
-class NBS_UI(QMainWindow):
+class NBS_UI(QWidget):
     def __init__(self):
         super().__init__()
         
@@ -113,12 +113,12 @@ class NBS_UI(QMainWindow):
         self.setWindowTitle("Noteblock song program")
         
         # Central widget
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
+
+
         
         # Vertical layout to hold the entire UI
         v_layout_0 = QVBoxLayout()
-        central_widget.setLayout(v_layout_0)
+        self.setLayout(v_layout_0)
 
         # Button to load a file
         self.load_file_btn = QPushButton("Load NBS File")

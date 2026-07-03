@@ -1,6 +1,6 @@
 import numpy as np
-from customNBT import CustomNBT
-from data import Data
+from core.customNBT import CustomNBT
+from core.data import Data
 
 class Layout2:
     """

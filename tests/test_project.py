@@ -3,11 +3,11 @@ import os
 import shutil
 import pandas as pd
 import numpy as np
-from data import Data
-from customNBT import CustomNBT
-from Layout2 import Layout2
-from MusicData import prep_data, Note
-import ReadNBS
+from core.data import Data
+from core.customNBT import CustomNBT
+from core.Layout2 import Layout2
+from core.MusicData import prep_data, Note
+import core.ReadNBS as ReadNBS
 
 class TestDataClass(unittest.TestCase):
     def test_initialization(self):
