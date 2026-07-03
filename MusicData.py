@@ -203,10 +203,16 @@ class MusicData:
     
     def speed_up(self, tick_second):
         """Resamples the song ticks to match a target ticks/second rate."""
-        if self.data is not None:
-            self.new_data = self.data.copy()
-            self.new_data['real tick'] = [math.ceil(a * 20 / tick_second) for a in self.new_data['tick']]
-            self.final_layer_adjustment()
+        if self.new_data is not None and not self.new_data.empty:
+            target_data = self.new_data
+        elif self.data is not None:
+            target_data = self.data.copy()
+            self.new_data = target_data
+        else:
+            return
+
+        target_data['real tick'] = [math.ceil(a * 20 / tick_second) for a in target_data['tick']]
+        self.final_layer_adjustment()
 
     def process_initial_data(self):
         """Adds octave and note columns."""
@@ -271,7 +277,10 @@ class MusicData:
                     layer += 1
                     new_rows.append(note)
 
-        self.new_data = pd.DataFrame(new_rows)
+        if not new_rows:
+            self.new_data = self.data.copy()
+        else:
+            self.new_data = pd.DataFrame(new_rows)
         self.final_layer_adjustment()
     
     def final_layer_adjustment(self):
