@@ -9,11 +9,12 @@ class StructureGenerator:
     Generates NBT files from processed MusicData.
     Supports different layouts and output modes (Monolithic vs. Mini-NBT parts).
     """
-    def __init__(self, processed_data, nbt_template, layout_type="Layout2"):
+    def __init__(self, processed_data, nbt_template, layout_type="Layout2", palettes=None):
         self.df_notes = processed_data
         self.nbt_template = nbt_template
         self.layout_type = layout_type
         self.global_data = Data()
+        self.palettes = palettes or {}
 
     def generate_blocks(self):
         """Processes notes and maps them to a global Data array using the selected layout."""
@@ -69,6 +70,73 @@ class StructureGenerator:
             layout.data.position = [pos[0], pos[1], pos[2]]
             self.global_data.add_data(layout.data)
             last_tick = tick
+
+        self.apply_decoration()
+
+    def apply_decoration(self):
+        """Applies floor, ceiling, and random decorations to the generated structure based on palettes."""
+        if not self.palettes or not any(self.palettes.values()):
+            return
+
+        import random
+
+        # Determine the bounding box of the generated structure
+        sX, sY, sZ = self.global_data.shape
+        if sX == 0 or sZ == 0:
+            return
+
+        min_x, max_x = 0, 0
+        min_z, max_z = 0, 0
+
+        # We need to find the actual min/max indices where blocks exist
+        for i in range(sX):
+            for k in range(sZ):
+                if np.any(self.global_data.data[i - sX//2, :, k - sZ//2]['f0']):
+                    min_x = min(min_x, i - sX//2)
+                    max_x = max(max_x, i - sX//2)
+                    min_z = min(min_z, k - sZ//2)
+                    max_z = max(max_z, k - sZ//2)
+
+        # Add some padding
+        min_x -= 3
+        max_x += 3
+        min_z -= 3
+        max_z += 3
+
+        data_deco = Data()
+
+        floor_blocks = self.palettes.get('floor', [])
+        ceiling_blocks = self.palettes.get('ceiling', [])
+        flowers = self.palettes.get('flowers', [])
+
+        # Pre-calculate NBT indices
+        floor_indices = [self.nbt_template.get_index_safe(b) for b in floor_blocks] if floor_blocks else []
+        ceiling_indices = [self.nbt_template.get_index_safe(b) for b in ceiling_blocks] if ceiling_blocks else []
+        flower_indices = [self.nbt_template.get_index_safe(b) for b in flowers] if flowers else []
+
+        def rand_index(indices, prob_nothing=0.0):
+            if not indices or random.random() < prob_nothing:
+                return self.nbt_template.get_index_safe("minecraft:air")
+            return random.choice(indices)
+
+        for i in range(min_x, max_x + 1):
+            for k in range(min_z, max_z + 1):
+                # Floor
+                if floor_indices:
+                    data_deco.add_block(i, -2, k, rand_index(floor_indices), random_delay_range=5)
+                    data_deco.add_block(i, -1, k, rand_index(floor_indices), random_delay_range=5)
+
+                # Flowers (sparse)
+                if flower_indices and random.random() > 0.8:
+                    data_deco.add_block(i, 0, k, rand_index(flower_indices), needs_down=True)
+
+                # Ceiling / Lanterns (sparse grid)
+                if ceiling_indices and (i % 4 == 0 and k % 4 == 0):
+                    data_deco.add_block(i, 4, k, rand_index(ceiling_indices))
+
+        # Merge the generated track into the decoration
+        data_deco.add_data(self.global_data)
+        self.global_data = data_deco
 
     def export_monolithic(self, output_path):
         """Exports the entire structure as a single NBT file."""
