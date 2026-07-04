@@ -1,9 +1,6 @@
+import os
 import sys
-from PyQt5.QtWidgets import QApplication
-from ui.MainApp import MainApp
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainApp()
-    window.show()
-    sys.exit(app.exec_())
+    print("Starting Streamlit app...")
+    os.system(f"{sys.executable} -m streamlit run app.py")

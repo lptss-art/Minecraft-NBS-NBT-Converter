@@ -19,13 +19,13 @@ You will need Python installed along with the following libraries:
 *   `pandas`
 *   `numpy`
 *   `nbt`
-*   `PyQt5` (for the GUIs)
+*   `streamlit` (for the GUI)
 *   `jupyter` (to run the notebooks)
 
 Install dependencies via pip:
 
 ```bash
-pip install pandas numpy nbt PyQt5 jupyter
+pip install pandas numpy nbt streamlit jupyter
 ```
 
 ## Usage
@@ -57,14 +57,16 @@ Before generating the structure, you may need to adjust the NBS file itself.
 *   **`change tempo and instrum.ipynb`**: Use this notebook to:
     *   Change the internal tempo of the NBS file.
     *   Remap instruments (e.g., if notes are too low/high, switch instruments or shift octaves).
-*   **`Main_ui.py`**: A GUI alternative for modifying NBS files. It provides a visual interface for:
+*   **`app.py`**: A Streamlit GUI alternative for modifying NBS files and generating NBT structures. It provides a visual interface for:
     *   Loading NBS files.
-    *   Adjusting tempo.
-    *   Mapping instruments across octaves using a grid interface.
+    *   Adjusting tempo and mapping instruments across octaves using a grid interface.
+    *   Generating the Minecraft structures visually.
 
 To run the GUI:
 ```bash
-python Main_ui.py
+python main.py
+# Or directly via streamlit:
+streamlit run app.py
 ```
 
 ### 3. Testing
@@ -84,5 +86,5 @@ python test_project.py
 *   **`customNBT.py`**: Helper class for creating and manipulating NBT data structures.
 *   **`Layout2.py`**: Logic for the physical layout of note blocks and redstone.
 *   **`data.py`**: Data container classes for block information.
-*   **`NBS_UI.py` / `NBT_UI.py`**: Source code for the graphical interfaces.
+*   **`app.py`**: Source code for the Streamlit graphical interface.
 *   **`test_project.py`**: Unit and functional tests.
