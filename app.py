@@ -249,6 +249,7 @@ with tab3:
         nbt1 = CustomNBT()
         l1 = Layout1(nbt=nbt1)
         l1.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l1.data.clean(nbt1.get_index_safe("minecraft:stone"))
         l1.write_nbt()
         nbt1.write_file("output/debug/debug_layout1_dense.nbt")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_dense")
@@ -258,6 +259,7 @@ with tab3:
         nbt2 = CustomNBT()
         l2 = Layout2(nbt=nbt2)
         l2.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l2.data.clean(nbt2.get_index_safe("minecraft:stone"))
         l2.write_nbt()
         nbt2.write_file("output/debug/debug_layout2_dense.nbt")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense")
@@ -267,6 +269,7 @@ with tab3:
         nbt3 = CustomNBT()
         l3 = Layout2(nbt=nbt3)
         l3.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10), is_symmetric=True)
+        l3.data.clean(nbt3.get_index_safe("minecraft:stone"))
         l3.write_nbt()
         nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense_sym")
@@ -277,6 +280,7 @@ with tab3:
         l4 = Layout2(nbt=nbt4)
         l4.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
         l4.flip()
+        l4.data.clean(nbt4.get_index_safe("minecraft:stone"))
         l4.write_nbt()
         nbt4.write_file("output/debug/debug_layout2_flipped.nbt")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_flipped")
@@ -288,6 +292,7 @@ with tab3:
             l_rot = Layout2(nbt=nbt_rot)
             l_rot.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
             l_rot.rotate(rot)
+            l_rot.data.clean(nbt_rot.get_index_safe("minecraft:stone"))
             l_rot.write_nbt()
             nbt_rot.write_file(f"output/debug/debug_layout2_rot{rot}.nbt")
             spawner_nbt.add_structure_block([test_index * 15, 0, 0], f"debug_layout2_rot{rot}")
@@ -305,12 +310,20 @@ with tab3:
         nbt_seq = CustomNBT()
         gen_seq = StructureGenerator(df_seq, nbt_seq, layout_type="Layout2")
         gen_seq.generate_blocks()
+
+        # We manually clean here with a stone block fallback to ensure tests are stable
+        gen_seq.global_data.clean(nbt_seq.get_index_safe("minecraft:stone"))
+
         gen_seq.global_data.write_nbt(nbt_seq)
         nbt_seq.write_file("output/debug/debug_assembly_serpentine.nbt")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_assembly_serpentine")
         test_index += 1
 
-        # Output the master spawner
+        # Output the master spawner, adding a button and redstone to trigger it
+        index_stone = spawner_nbt.get_index_safe("minecraft:stone")
+        index_button = spawner_nbt.get_index_safe("minecraft:stone_button", {"face": "floor", "facing": "east"})
+        spawner_nbt.add_block([-1, 0, 0], index_stone)
+        spawner_nbt.add_block([-1, 1, 0], index_button)
         spawner_nbt.write_file("output/debug/debug_spawner.nbt")
 
         st.success(f"Successfully generated 9 complex test bricks and 1 assembly sequence in `output/debug/`")

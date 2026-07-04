@@ -57,16 +57,42 @@ class Data:
             }
         })
 
-    def clean(self):
-        """Removes duplicate blocks at the same coordinate, keeping the most recent one."""
+    def clean(self, index_floor=-1):
+        """Removes duplicate blocks at the same coordinate, keeping the most recent one.
+           If a block has 'needs_down' and there is nothing below it, it inserts a floor block.
+        """
         seen = {}
         # Iterate forwards; latter blocks with same coordinate will overwrite previous ones
         for block in self.blocks:
             coord = tuple(block['pos'])
             seen[coord] = block
 
-        # The values of the dictionary will be the unique (most recent) blocks
         self.blocks = list(seen.values())
+
+        if index_floor == -1:
+            return
+
+        # Second pass: inject floor blocks for elements requiring support
+        coord_map = {tuple(b['pos']): b for b in self.blocks}
+        to_add = []
+        for block in self.blocks:
+            if block['metadata'].get('needs_down', False):
+                below_coord = (block['pos'][0], block['pos'][1] - 1, block['pos'][2])
+                if below_coord not in coord_map:
+                    to_add.append({
+                        'pos': list(below_coord),
+                        'index': index_floor,
+                        'metadata': {
+                            'tick': block['metadata']['tick'],
+                            'random_delay_range': block['metadata']['random_delay_range'],
+                            'layer': block['metadata']['layer'],
+                            'needs_down': False,
+                            'needs_up': False
+                        }
+                    })
+                    coord_map[below_coord] = to_add[-1]
+
+        self.blocks.extend(to_add)
 
     def rotate(self, rotations, nbt=None):
         """Rotates the grid blocks by 90 degree steps."""

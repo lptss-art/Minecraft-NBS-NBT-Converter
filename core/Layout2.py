@@ -187,7 +187,7 @@ class Layout2:
         self.data.add_block(x, y, z, note.note + self.offset_notes, self.tick)
 
         # Instrument block
-        self.data.add_block(x, y - 1, z, note.instr + self.offset_instr, self.tick)
+        self.data.add_block(x, y - 1, z, note.instr + self.offset_instr, self.tick, needs_down=True)
         
         # Air block
         self.data.add_block(x, y + 1, z, self.index_air, self.tick)

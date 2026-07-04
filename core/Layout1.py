@@ -72,7 +72,7 @@ class Layout1:
         if not hasattr(note, 'note'):
             return
         self.data.add_block(x, y, z, note.note + self.offset_notes, self.tick)
-        self.data.add_block(x, y - 1, z, note.instr + self.offset_instr, self.tick)
+        self.data.add_block(x, y - 1, z, note.instr + self.offset_instr, self.tick, needs_down=True)
         self.data.add_block(x, y + 1, z, self.index_air, self.tick)
 
     def add_block(self, x, y, z, index, random_delay_range=-1, needs_down=False, needs_up=False):
