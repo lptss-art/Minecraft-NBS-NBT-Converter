@@ -256,17 +256,17 @@ with tab3:
                 # Apply arbitrary rotation
                 rot = random.randint(0, 3)
                 layout.rotate(rot)
-                name = f"debug_brick_{i}_layout2_rot{rot}.nbt"
+                base_name = f"debug_brick_{i}_layout2_rot{rot}"
             else:
                 layout = Layout1(nbt=nbt)
                 layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
-                name = f"debug_brick_{i}_layout1.nbt"
+                base_name = f"debug_brick_{i}_layout1"
 
             layout.write_nbt()
-            nbt.write_file(f"output/debug/{name}")
+            nbt.write_file(f"output/debug/{base_name}.nbt")
 
-            # Add to spawner, spaced out
-            spawner_nbt.add_structure_block([i * 10, 0, 0], name)
+            # Add to spawner, spaced out (do not include .nbt in structure block string)
+            spawner_nbt.add_structure_block([i * 10, 0, 0], base_name)
 
         spawner_nbt.write_file("output/debug/debug_spawner.nbt")
         st.success(f"Successfully generated {num_test_segments} bricks and spawner in output/debug/")
