@@ -27,7 +27,7 @@ class StructureGenerator:
             tick_diff = int(tick - last_tick)
 
             # Instantiate the chosen layout
-            if self.layout_type == "Layout1 (Minecart)":
+            if "Layout1" in self.layout_type:
                 layout = Layout1(nbt=self.nbt_template)
             else:
                 layout = Layout2(nbt=self.nbt_template)
@@ -39,7 +39,7 @@ class StructureGenerator:
             notes_demi = self.df_notes.loc[tick]['note demi']
 
             # Basic serpentine logic (can be expanded for straight Minecart logic)
-            if self.layout_type == "Layout2":
+            if "Layout2" in self.layout_type:
                 if direction % 4 == 0:
                     layout.add(tick_diff, notes_entier, notes_demi, is_symmetric=True)
                     pos[0] += 1
