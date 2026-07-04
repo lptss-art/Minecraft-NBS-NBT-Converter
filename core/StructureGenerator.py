@@ -82,28 +82,16 @@ class StructureGenerator:
 
         import random
 
-        # Determine the bounding box of the generated structure
-        sX, sY, sZ = self.global_data.shape
-        if sX == 0 or sZ == 0:
+        if not self.global_data.blocks:
             return
 
-        min_x, max_x = 0, 0
-        min_z, max_z = 0, 0
+        xs = [b['pos'][0] for b in self.global_data.blocks]
+        zs = [b['pos'][2] for b in self.global_data.blocks]
 
-        # We need to find the actual min/max indices where blocks exist
-        for i in range(sX):
-            for k in range(sZ):
-                if np.any(self.global_data.data[i - sX//2, :, k - sZ//2]['f0']):
-                    min_x = min(min_x, i - sX//2)
-                    max_x = max(max_x, i - sX//2)
-                    min_z = min(min_z, k - sZ//2)
-                    max_z = max(max_z, k - sZ//2)
-
-        # Add some padding
-        min_x -= 3
-        max_x += 3
-        min_z -= 3
-        max_z += 3
+        min_x = min(xs) - 3
+        max_x = max(xs) + 3
+        min_z = min(zs) - 3
+        max_z = max(zs) + 3
 
         data_deco = Data()
 
@@ -152,39 +140,33 @@ class StructureGenerator:
         self.global_data.set_layers(5)
 
         # Determine number of layers
-        max_layer = int(np.max(self.global_data.data['f4'])) if self.global_data.data.size > 0 else 0
+        max_layer = 0
+        for block in self.global_data.blocks:
+            max_layer = max(max_layer, block['metadata'].get('layer', 0))
+
         nb_layers = max_layer + 1
 
         layouts = [Data() for _ in range(nb_layers)]
-        for i in range(nb_layers):
-            layouts[i].reshape(0, 0, self.global_data.shape[2] - 1)
 
         offsets = [None] * nb_layers
         offset_y = -10
         offset_z = 0
 
-        sX, sY, sZ = self.global_data.shape
-        for i in range(sX):
-            for j in range(sY):
-                for k in range(sZ):
-                    i2 = i - sX // 2
-                    j2 = j - sY // 2
-                    k2 = k - sZ // 2
+        for block in self.global_data.blocks:
+            layer = block['metadata'].get('layer', 0)
+            x, y, z = block['pos']
 
-                    cell = self.global_data.data[i2, j2, k2]
-                    if cell['f0']:  # If block is present
-                        layer = int(cell['f4'])
-                        if offsets[layer] is None:
-                            offsets[layer] = i2
-                            layouts[layer].position = [0, 0, 0]
+            if offsets[layer] is None:
+                offsets[layer] = x
+                layouts[layer].position = [0, 0, 0]
 
-                        layouts[layer].add_block(
-                            i2 - offsets[layer],
-                            j2 - offset_y,
-                            k2 - offset_z,
-                            cell['f1'],
-                            0
-                        )
+            layouts[layer].add_block(
+                x - offsets[layer],
+                y - offset_y,
+                z - offset_z,
+                block['index'],
+                0
+            )
 
         # Export individual layer parts
         for i, layout in enumerate(layouts):

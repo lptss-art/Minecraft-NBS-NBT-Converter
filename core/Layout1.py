@@ -35,8 +35,6 @@ class Layout1:
         For now, this mimics the basic note addition based on offsets to integrate with
         a generator.
         """
-        self.data.reshape(10, 0, 4)
-
         if notes_integer is None:
             notes_integer = []
         if notes_half is None:
