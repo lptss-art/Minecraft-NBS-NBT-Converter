@@ -66,6 +66,30 @@ class TestCustomNBT(unittest.TestCase):
         self.assertEqual(block['state'].value, idx)
         self.assertEqual(block['pos'][1].value, 1)
 
+class TestLayout1(unittest.TestCase):
+    def test_add_notes(self):
+        nbt = CustomNBT()
+        from core.Layout1 import Layout1
+        layout = Layout1(nbt=nbt)
+
+        notes_int = [Note(1, 0), Note(5, 0)]
+        notes_half = [Note(3, 0)]
+
+        layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+
+        # Check if data was populated
+        self.assertTrue(len(layout.data.blocks) > 0)
+
+    def test_write_nbt(self):
+        nbt = CustomNBT()
+        from core.Layout1 import Layout1
+        layout = Layout1(nbt=nbt)
+        layout.add_block(0, 0, 0, 1)
+
+        initial_blocks = len(nbt.nbtfile['blocks'])
+        layout.write_nbt()
+        self.assertTrue(len(nbt.nbtfile['blocks']) > initial_blocks)
+
 class TestLayout2(unittest.TestCase):
     def test_add_notes(self):
         nbt = CustomNBT()

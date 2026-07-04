@@ -84,3 +84,7 @@ class Layout1:
 
     def rotate(self, r):
         self.data.rotate(r, self.custom_nbt)
+
+    def write_nbt(self):
+        """Writes the layout data to the customNBT object."""
+        self.data.write_nbt(self.custom_nbt)
