@@ -118,19 +118,45 @@ class CustomNBT:
         for palette_entry in self.nbtfile['palette']:
             old_index += 1
             if 'Properties' in palette_entry:
-                if 'facing' in palette_entry['Properties']:
-                    props = {}
-                    for key in palette_entry['Properties'].keys():
-                        props[key] = palette_entry['Properties'][key].value
-                        
+                props = {}
+                for key in palette_entry['Properties'].keys():
+                    props[key] = palette_entry['Properties'][key].value
+
+                has_changed = False
+
+                # 1. Handle blocks with 'facing' property (pistons, repeaters)
+                if 'facing' in props:
                     direction = props['facing']
                     if is_symmetric and (direction == 'east' or direction == 'west'):
                         pass
                     else:
                         if direction in directions:
                             props['facing'] = directions_i[(directions[direction] + rotations) % 4]
-                            new_index = self.get_index(palette_entry["Name"].value, props)
-                            correspondence[old_index] = new_index
+                            has_changed = True
+
+                # 2. Handle redstone wire / blocks with individual directional keys
+                elif any(d in props for d in directions.keys()):
+                    new_props = props.copy()
+
+                    if is_symmetric:
+                        # For symmetry flip across Z axis (east/west swap)
+                        new_props['east'] = props.get('west', 'none')
+                        new_props['west'] = props.get('east', 'none')
+                        has_changed = True
+                    else:
+                        # Standard rotation
+                        for d in directions.keys():
+                            if d in props:
+                                # Rotate the target direction
+                                new_d = directions_i[(directions[d] + rotations) % 4]
+                                new_props[new_d] = props[d]
+                                has_changed = True
+
+                    props = new_props
+
+                if has_changed:
+                    new_index = self.get_index(palette_entry["Name"].value, props)
+                    correspondence[old_index] = new_index
                     
         return correspondence
     
