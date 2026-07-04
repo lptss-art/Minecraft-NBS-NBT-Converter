@@ -160,7 +160,7 @@ class CustomNBT:
                     
         return correspondence
     
-    def add_block(self, position, block_state_id):
+    def add_block(self, position, block_state_id, metadata=None):
         """Adds a block to the structure."""
         block = TAG_Compound()
         block['pos'] = TAG_List(TAG_Int)
@@ -169,6 +169,16 @@ class CustomNBT:
         block['pos'].append(TAG_Int(value=int(position[2])))
 
         block['state'] = TAG_Int(int(block_state_id))
+
+        if metadata:
+            block['nbt'] = TAG_Compound()
+            for key, value in metadata.items():
+                if isinstance(value, bool):
+                    block['nbt'][key] = TAG_Byte(int(value))
+                elif isinstance(value, int):
+                    block['nbt'][key] = TAG_Int(value)
+                elif isinstance(value, str):
+                    block['nbt'][key] = TAG_String(value)
 
         self.nbtfile['blocks'].append(block)
         

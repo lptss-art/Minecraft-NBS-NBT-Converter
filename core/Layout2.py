@@ -40,6 +40,10 @@ class Layout2:
         self.tick = 0
         self.index = 0
 
+    def _roll(self, shift):
+        for block in self.data.blocks:
+            block['pos'][0] += shift
+
     def add(self, tick_delay, notes_integer=None, notes_half=None, is_symmetric=False):
         """
         Adds a segment of the song (one or more ticks) to the layout.
@@ -50,8 +54,6 @@ class Layout2:
             notes_half (list): List of notes on half ticks (requiring pistons).
             is_symmetric (bool): Symmetry flag for layout variation.
         """
-        self.data.reshape(10, 0, 4)
-
         integer_note_count = 0
         half_note_count = 0
 
@@ -69,7 +71,7 @@ class Layout2:
             if half_note_count >= 3:
                 self.add_note(0, 0, 1, notes_half[2])
             if half_note_count >= 4:
-                self.data.data = np.roll(self.data.data, 1, axis=0)
+                self._roll(1)
                 self.add_block(0, 0, 0, self.index_redstone, needs_down=True)
                 self.add_block(0, -1, 0, self.index_floor)
                 self.add_note(1, 0, 0, notes_half[3])
@@ -78,7 +80,7 @@ class Layout2:
             if half_note_count >= 6:
                 self.add_note(0, -1, -1, notes_half[5])
             if half_note_count >= 7:
-                self.data.data = np.roll(self.data.data, 1, axis=0)
+                self._roll(1)
                 self.add_block(0, 0, 0, self.index_redstone, needs_down=True)
                 self.add_block(0, -1, 0, self.index_floor)
                 self.add_note(0, -1, 1, notes_half[6])
@@ -86,13 +88,13 @@ class Layout2:
                 self.add_note(0, -1, -1, notes_half[7]) # Up to 8 half notes supported
                 
             if half_note_count >= 4:
-                self.data.data = np.roll(self.data.data, 1, axis=0)
+                self._roll(1)
 
-            self.data.data = np.roll(self.data.data, 2, axis=0)
+            self._roll(2)
             self.add_block(0, 0, 0, self.index_piston)
             self.add_block(1, 0, 0, self.index_redstone_block)
             
-            self.data.data = np.roll(self.data.data, 1, axis=0)
+            self._roll(1)
             
         # Integer tick notes (rotated part)
         # Triggered if > 5 notes (no piston) or > 4 notes (with piston)
@@ -111,7 +113,7 @@ class Layout2:
                 self.add_note(0, -1, 1, notes_integer[4 + offset_notes_integer])
 
             if integer_note_count >= 6 + offset_notes_integer:
-                self.data.data = np.roll(self.data.data, 1, axis=0)
+                self._roll(1)
                 self.add_block(0, 0, 0, self.index_redstone, needs_down=True)
                 self.add_block(0, -1, 0, self.index_floor)
                 self.add_note(0, -1, -1, notes_integer[5 + offset_notes_integer])
@@ -119,19 +121,19 @@ class Layout2:
                 self.add_note(0, -1, 1, notes_integer[6 + offset_notes_integer])
              
             if integer_note_count >= 8 + offset_notes_integer:
-                self.data.data = np.roll(self.data.data, 1, axis=0)
+                self._roll(1)
                 self.add_block(0, 0, 0, self.index_redstone, needs_down=True)
                 self.add_block(0, -1, 0, self.index_floor)
                 self.add_note(0, -1, -1, notes_integer[7 + offset_notes_integer])
             if integer_note_count >= 9 + offset_notes_integer:
                 self.add_note(0, -1, 1, notes_integer[8 + offset_notes_integer])
             
-            self.data.data = np.roll(self.data.data, 1, axis=0)
+            self._roll(1)
 
         # Rotate piston/extended parts
         if is_symmetric:
             self.rotate(1)
-        self.data.data = np.roll(self.data.data, 1, axis=0)
+        self._roll(1)
 
         # Central block
         if integer_note_count == 0:
@@ -206,13 +208,4 @@ class Layout2:
     
     def write_nbt(self):
         """Writes the layout data to the customNBT object."""
-        size_x = self.data.shape[0]
-        size_y = self.data.shape[1]
-        size_z = self.data.shape[2]
-        for i in range(size_x):
-            for j in range(size_y):
-                for k in range(size_z):
-                    if self.data.data[i - size_x // 2, j - size_y // 2, k - size_z // 2]['f0']:
-                        # Assuming index 1 holds the block type
-                        block_type = self.data.data[i - size_x // 2, j - size_y // 2, k - size_z // 2]['f1']
-                        self.custom_nbt.add_block([i - size_x // 2, j - size_y // 2, k - size_z // 2], block_type)
+        self.data.write_nbt(self.custom_nbt)

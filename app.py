@@ -11,7 +11,7 @@ st.set_page_config(page_title="NoteBlock Studio to NBT Generator", layout="wide"
 
 st.title("NoteBlock Studio to NBT Generator")
 
-tab1, tab2 = st.tabs(["1. Pre-process NBS (Instruments & Tempo)", "2. Generate NBT Structure"])
+tab1, tab2, tab3 = st.tabs(["1. Pre-process NBS (Instruments & Tempo)", "2. Generate NBT Structure", "3. Debug & Test Generation"])
 
 with tab1:
     st.header("Pre-process NBS")
@@ -219,3 +219,54 @@ with tab2:
                     file_name=st.session_state.generated_nbt_name,
                     mime=st.session_state.generated_nbt_mime
                 )
+
+with tab3:
+    st.header("Debug / Test Generation")
+
+    num_test_segments = st.number_input("Number of test segments to generate:", min_value=1, max_value=50, value=5)
+
+    if st.button("Generate Test Blocks"):
+        import random
+        from core.MusicData import Note
+        from core.Layout2 import Layout2
+        from core.Layout1 import Layout1
+        from core.customNBT import CustomNBT
+
+        st.write("Generating debug lego bricks...")
+
+        if not os.path.exists("output/debug"):
+            os.makedirs("output/debug")
+
+        spawner_nbt = CustomNBT()
+
+        for i in range(num_test_segments):
+            nbt = CustomNBT()
+
+            # Generate random notes
+            num_int = random.randint(0, 4)
+            num_half = random.randint(0, 2)
+
+            notes_int = [Note(random.randint(0, 24), random.randint(0, 5)) for _ in range(num_int)]
+            notes_half = [Note(random.randint(0, 24), random.randint(0, 5)) for _ in range(num_half)]
+
+            # Randomize straight vs rotated for Layout2
+            if random.choice([True, False]):
+                layout = Layout2(nbt=nbt)
+                layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half, is_symmetric=random.choice([True, False]))
+                # Apply arbitrary rotation
+                rot = random.randint(0, 3)
+                layout.rotate(rot)
+                name = f"debug_brick_{i}_layout2_rot{rot}.nbt"
+            else:
+                layout = Layout1(nbt=nbt)
+                layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+                name = f"debug_brick_{i}_layout1.nbt"
+
+            layout.write_nbt()
+            nbt.write_file(f"output/debug/{name}")
+
+            # Add to spawner, spaced out
+            spawner_nbt.add_structure_block([i * 10, 0, 0], name)
+
+        spawner_nbt.write_file("output/debug/debug_spawner.nbt")
+        st.success(f"Successfully generated {num_test_segments} bricks and spawner in output/debug/")

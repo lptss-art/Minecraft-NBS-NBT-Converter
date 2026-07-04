@@ -13,23 +13,25 @@ class TestDataClass(unittest.TestCase):
     def test_initialization(self):
         data = Data()
         self.assertEqual(data.position, [0, 0, 0])
-        self.assertEqual(data.max_dimensions, [0, 0, 0])
-        self.assertEqual(data.data.shape, (4, 1, 4))
+        self.assertEqual(len(data.blocks), 0)
 
-    def test_add_block_and_reshape(self):
+    def test_add_block_and_clean(self):
         data = Data()
-        # Add block within bounds
-        data.add_block(0, 0, 0, 1)
-        self.assertTrue(data.data[0, 0, 0]['f0']) # Present
-        self.assertEqual(data.data[0, 0, 0]['f1'], 1) # Index
 
-        # Add block out of bounds (triggers reshape)
-        data.add_block(10, 0, 0, 2)
-        # Check if shape expanded
-        self.assertTrue(data.shape[0] > 10)
-        # Check if block is present (need to find new index due to roll)
-        indices = np.where(data.data['f1'] == 2)
-        self.assertTrue(len(indices[0]) > 0)
+        # Add block
+        data.add_block(0, 0, 0, 1)
+        self.assertEqual(len(data.blocks), 1)
+        self.assertEqual(data.blocks[0]['index'], 1)
+        self.assertEqual(data.blocks[0]['pos'], [0, 0, 0])
+
+        # Add another block at same position
+        data.add_block(0, 0, 0, 2)
+        self.assertEqual(len(data.blocks), 2)
+
+        # Clean should keep the second one
+        data.clean()
+        self.assertEqual(len(data.blocks), 1)
+        self.assertEqual(data.blocks[0]['index'], 2)
 
     def test_set_layers(self):
         data = Data()
@@ -37,7 +39,7 @@ class TestDataClass(unittest.TestCase):
         data.set_layers(default_random_amount=5)
         # Layer should be set based on tick and random
         # Layer = tick - rand(0, 5) => 10 - [0,5] => [5, 10]
-        layer = data.data[0, 0, 0]['f4']
+        layer = data.blocks[0]['metadata']['layer']
         self.assertTrue(5 <= layer <= 10)
 
 class TestCustomNBT(unittest.TestCase):
@@ -75,7 +77,7 @@ class TestLayout2(unittest.TestCase):
         layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
 
         # Check if data was populated
-        self.assertTrue(np.any(layout.data.data['f0'])) # Check if any block is present
+        self.assertTrue(len(layout.data.blocks) > 0)
 
     def test_write_nbt(self):
         nbt = CustomNBT()
