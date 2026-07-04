@@ -47,48 +47,11 @@ with tab1:
                        'bit', 'harp', 'cow_bell', 'flute', 'chime', 'xylophone', 'bell']
         octaves = [-3, -2, -1, 0, 1, 2, 3, 4]
 
-        instrument_values = {'didgeridoo': -2, 'bass': -2, 'guitar': -1, 'banjo': 0, 'pling': 0, 'iron_xylophone': 0,
-                            'bit': 0, 'harp': 0, 'cow_bell': 1, 'flute': 1, 'chime': 2, 'xylophone': 2, 'bell': 2}
-
         if 'instrument_matrix' not in st.session_state:
             df = pd.DataFrame(False, index=octaves, columns=instruments)
             st.session_state.instrument_matrix = df
 
-        def style_df(data):
-            df_styles = pd.DataFrame('', index=data.index, columns=data.columns)
-            for row in data.index:
-                for col in data.columns:
-                    val = instrument_values[col]
-                    if row < val:
-                        # Gray for below native range
-                        df_styles.loc[row, col] = 'background-color: #d3d3d3; color: black;'
-                    elif row == val or row == val + 1:
-                        # Blue for native range (2 octaves)
-                        df_styles.loc[row, col] = 'background-color: #add8e6; color: black;'
-                    else:
-                        # Yellow for above native range
-                        df_styles.loc[row, col] = 'background-color: #ffffe0; color: black;'
-            return df_styles
-
-        st.markdown("""
-        <style>
-        /* Increase the height of the cells in the data editor to make them easier to click */
-        [data-testid="stDataFrameResizable"] {
-            width: 100% !important;
-        }
-        [data-testid="data-grid"] {
-            font-size: 1.1rem;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
-        st.write("*Color Legend: 🟦 Blue = Native Minecraft Octave Range (2 octaves), ⬜ Gray = Below Range, 🟨 Yellow = Above Range. Click the cells to toggle.*")
-
-        edited_df = st.data_editor(
-            st.session_state.instrument_matrix.style.apply(style_df, axis=None),
-            use_container_width=True,
-            height=350
-        )
+        edited_df = st.data_editor(st.session_state.instrument_matrix)
 
         if st.button("Save & Process"):
             processor.file_name = output_name
@@ -100,18 +63,14 @@ with tab1:
 
             out_file = processor.write_nbs()
             if out_file:
-                st.session_state.processed_nbs_path = out_file
-                st.session_state.processed_nbs_name = f"{output_name}.nbs"
-
-        if 'processed_nbs_path' in st.session_state and os.path.exists(st.session_state.processed_nbs_path):
-            with open(st.session_state.processed_nbs_path, "rb") as f:
-                st.download_button(
-                    label="Download Processed NBS",
-                    data=f,
-                    file_name=st.session_state.processed_nbs_name,
-                    mime="application/octet-stream"
-                )
-            st.success("File processed and ready for download!")
+                with open(out_file, "rb") as f:
+                    st.download_button(
+                        label="Download Processed NBS",
+                        data=f,
+                        file_name=f"{output_name}.nbs",
+                        mime="application/octet-stream"
+                    )
+                st.success("File processed and ready for download!")
 
 with tab2:
     st.header("Generate NBT Structure")
@@ -162,11 +121,16 @@ with tab2:
                     if export_mode == "Single Monolithic File":
                         out_path = f"output/{out_name}_complete.nbt"
                         generator.export_monolithic(out_path)
-                        st.session_state.generated_nbt_path = out_path
-                        st.session_state.generated_nbt_name = f"{out_name}_complete.nbt"
-                        st.session_state.generated_nbt_mime = "application/octet-stream"
                         progress_bar.progress(100)
                         status_text.text("Finished!")
+
+                        with open(out_path, "rb") as f:
+                            st.download_button(
+                                label="Download NBT Structure",
+                                data=f,
+                                file_name=f"{out_name}_complete.nbt",
+                                mime="application/octet-stream"
+                            )
                     else:
                         out_dir = f"output/{out_name}_parts"
                         if os.path.exists(out_dir):
@@ -178,24 +142,19 @@ with tab2:
                         zip_path = f"output/{out_name}_parts.zip"
                         shutil.make_archive(zip_path.replace('.zip', ''), 'zip', out_dir)
 
-                        st.session_state.generated_nbt_path = zip_path
-                        st.session_state.generated_nbt_name = f"{out_name}_parts.zip"
-                        st.session_state.generated_nbt_mime = "application/zip"
-
                         progress_bar.progress(100)
                         status_text.text("Finished!")
 
+                        with open(zip_path, "rb") as f:
+                            st.download_button(
+                                label="Download NBT Parts (ZIP)",
+                                data=f,
+                                file_name=f"{out_name}_parts.zip",
+                                mime="application/zip"
+                            )
+
+                    st.success("Generation completed successfully!")
             except Exception as e:
                 import traceback
                 st.error(f"An error occurred during generation: {e}")
                 st.text(traceback.format_exc())
-
-        if 'generated_nbt_path' in st.session_state and os.path.exists(st.session_state.generated_nbt_path):
-            st.success("Generation completed successfully!")
-            with open(st.session_state.generated_nbt_path, "rb") as f:
-                st.download_button(
-                    label=f"Download {st.session_state.generated_nbt_name}",
-                    data=f,
-                    file_name=st.session_state.generated_nbt_name,
-                    mime=st.session_state.generated_nbt_mime
-                )
