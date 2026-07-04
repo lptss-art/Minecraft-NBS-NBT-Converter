@@ -112,13 +112,13 @@ class StructureGenerator:
         flowers = self.palettes.get('flowers', [])
 
         # Pre-calculate NBT indices
-        floor_indices = [self.nbt_template.get_index_safe(b) for b in floor_blocks] if floor_blocks else []
-        ceiling_indices = [self.nbt_template.get_index_safe(b) for b in ceiling_blocks] if ceiling_blocks else []
-        flower_indices = [self.nbt_template.get_index_safe(b) for b in flowers] if flowers else []
+        floor_indices = [self.nbt_template.get_index(f"minecraft:{b}") for b in floor_blocks] if floor_blocks else []
+        ceiling_indices = [self.nbt_template.get_index(f"minecraft:{b}") for b in ceiling_blocks] if ceiling_blocks else []
+        flower_indices = [self.nbt_template.get_index(f"minecraft:{b}") for b in flowers] if flowers else []
 
         def rand_index(indices, prob_nothing=0.0):
             if not indices or random.random() < prob_nothing:
-                return self.nbt_template.get_index_safe("minecraft:air")
+                return self.nbt_template.get_index("minecraft:air")
             return random.choice(indices)
 
         for i in range(min_x, max_x + 1):
