@@ -66,8 +66,7 @@ class StructureGenerator:
                 pos[0] += 1
 
             # Shift layout data into global position and merge
-            # (In a full implementation, we offset layout.data based on `pos`)
-            # For simplicity in this unified structure, we mock the global data merge
+            layout.data.position = [pos[0], pos[1], pos[2]]
             self.global_data.add_data(layout.data)
             last_tick = tick
 
@@ -77,10 +76,62 @@ class StructureGenerator:
         self.global_data.write_nbt(nbt_out)
         nbt_out.write_file(output_path)
 
-    def export_multipart(self, output_dir, prefix="part", tick_delay=28):
+    def export_multipart(self, output_dir, prefix="song_part", tick_delay=28):
         """Exports the structure as multiple mini-NBTs with Structure Blocks."""
-        # Split self.global_data into layers based on 'layer' / tick_delay
-        # Save each to output_dir/prefix_0.nbt, prefix_1.nbt, etc.
-        # Save a master start.nbt
-        # (Placeholder for the complex multi-part logic found in Notebooks)
-        pass
+        import os
+        self.global_data.set_layers(5)
+
+        # Determine number of layers
+        max_layer = int(np.max(self.global_data.data['f4'])) if self.global_data.data.size > 0 else 0
+        nb_layers = max_layer + 1
+
+        layouts = [Data() for _ in range(nb_layers)]
+        for i in range(nb_layers):
+            layouts[i].reshape(0, 0, self.global_data.shape[2] - 1)
+
+        offsets = [None] * nb_layers
+        offset_y = -10
+        offset_z = 0
+
+        sX, sY, sZ = self.global_data.shape
+        for i in range(sX):
+            for j in range(sY):
+                for k in range(sZ):
+                    i2 = i - sX // 2
+                    j2 = j - sY // 2
+                    k2 = k - sZ // 2
+
+                    cell = self.global_data.data[i2, j2, k2]
+                    if cell['f0']:  # If block is present
+                        layer = int(cell['f4'])
+                        if offsets[layer] is None:
+                            offsets[layer] = i2
+                            layouts[layer].position = [0, 0, 0]
+
+                        layouts[layer].add_block(
+                            i2 - offsets[layer],
+                            j2 - offset_y,
+                            k2 - offset_z,
+                            cell['f1'],
+                            0
+                        )
+
+        # Export individual layer parts
+        for i, layout in enumerate(layouts):
+            nbt_part = CustomNBT()
+            layout.write_nbt(nbt_part)
+            nbt_part.write_file(os.path.join(output_dir, f"{prefix}_{i}.nbt"))
+
+        # Create Master Structure (Base) connecting Structure Blocks
+        nbt_base = CustomNBT()
+        for i in range(len(layouts) * tick_delay):
+            if i % tick_delay == 0:
+                n_layout = int(i / tick_delay)
+                offset = offsets[n_layout] if offsets[n_layout] is not None else 0
+
+                # Place a Structure Block to load the part
+                name = f"{prefix}_{n_layout}"
+                # Base is at x=0, z=0. The parts offset along x based on the serpentine logic.
+                nbt_base.add_structure_block([offset, 0, 0], f"minecraft:{name}", 0, 0, 0)
+
+        nbt_base.write_file(os.path.join(output_dir, "base_start.nbt"))

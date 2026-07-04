@@ -48,6 +48,7 @@ class GeneratorThread(QThread):
             out_name = os.path.splitext(os.path.basename(self.nbs_path))[0]
             if self.export_mode == "Single Monolithic File":
                 out_path = f"output/{out_name}_complete.nbt"
+                os.makedirs(os.path.dirname(out_path), exist_ok=True)
                 generator.export_monolithic(out_path)
             else:
                 out_dir = f"output/{out_name}_parts"
