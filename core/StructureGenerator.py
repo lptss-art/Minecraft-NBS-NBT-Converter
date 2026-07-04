@@ -38,6 +38,9 @@ class StructureGenerator:
             notes_entier = self.df_notes.loc[tick]['note entier']
             notes_demi = self.df_notes.loc[tick]['note demi']
 
+            # Set position BEFORE advancing the coordinates for the next tick
+            layout.data.position = [pos[0], pos[1], pos[2]]
+
             # Basic serpentine logic (can be expanded for straight Minecart logic)
             if "Layout2" in self.layout_type:
                 if direction % 4 == 0:
@@ -66,8 +69,7 @@ class StructureGenerator:
                 layout.add(tick_diff, notes_entier, notes_demi)
                 pos[0] += 1
 
-            # Shift layout data into global position and merge
-            layout.data.position = [pos[0], pos[1], pos[2]]
+            # Merge the placed layout section
             self.global_data.add_data(layout.data)
             last_tick = tick
 
