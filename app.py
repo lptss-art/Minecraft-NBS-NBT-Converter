@@ -223,7 +223,7 @@ with tab2:
 with tab3:
     st.header("Debug / Test Generation")
 
-    num_test_segments = st.number_input("Number of test segments to generate:", min_value=1, max_value=50, value=5)
+    st.write("Generate complex note block structures (Lego bricks) to test layout limits and transformations directly in Minecraft.")
 
     if st.button("Generate Test Blocks"):
         import random
@@ -231,6 +231,7 @@ with tab3:
         from core.Layout2 import Layout2
         from core.Layout1 import Layout1
         from core.customNBT import CustomNBT
+        from core.StructureGenerator import StructureGenerator
 
         st.write("Generating debug lego bricks...")
 
@@ -238,35 +239,78 @@ with tab3:
             os.makedirs("output/debug")
 
         spawner_nbt = CustomNBT()
+        test_index = 0
 
-        for i in range(num_test_segments):
-            nbt = CustomNBT()
+        # Helper for generating notes
+        def make_notes(count):
+            return [Note(random.randint(0, 24), random.randint(0, 5)) for _ in range(count)]
 
-            # Generate random notes
-            num_int = random.randint(0, 4)
-            num_half = random.randint(0, 2)
+        # Test 1: Dense Layout1
+        nbt1 = CustomNBT()
+        l1 = Layout1(nbt=nbt1)
+        l1.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l1.write_nbt()
+        nbt1.write_file("output/debug/debug_layout1_dense.nbt")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_dense")
+        test_index += 1
 
-            notes_int = [Note(random.randint(0, 24), random.randint(0, 5)) for _ in range(num_int)]
-            notes_half = [Note(random.randint(0, 24), random.randint(0, 5)) for _ in range(num_half)]
+        # Test 2: Dense Layout2 (Base)
+        nbt2 = CustomNBT()
+        l2 = Layout2(nbt=nbt2)
+        l2.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l2.write_nbt()
+        nbt2.write_file("output/debug/debug_layout2_dense.nbt")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense")
+        test_index += 1
 
-            # Randomize straight vs rotated for Layout2
-            if random.choice([True, False]):
-                layout = Layout2(nbt=nbt)
-                layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half, is_symmetric=random.choice([True, False]))
-                # Apply arbitrary rotation
-                rot = random.randint(0, 3)
-                layout.rotate(rot)
-                base_name = f"debug_brick_{i}_layout2_rot{rot}"
-            else:
-                layout = Layout1(nbt=nbt)
-                layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
-                base_name = f"debug_brick_{i}_layout1"
+        # Test 3: Dense Layout2 (Symmetric)
+        nbt3 = CustomNBT()
+        l3 = Layout2(nbt=nbt3)
+        l3.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10), is_symmetric=True)
+        l3.write_nbt()
+        nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense_sym")
+        test_index += 1
 
-            layout.write_nbt()
-            nbt.write_file(f"output/debug/{base_name}.nbt")
+        # Test 4: Layout2 Flipped
+        nbt4 = CustomNBT()
+        l4 = Layout2(nbt=nbt4)
+        l4.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l4.flip()
+        l4.write_nbt()
+        nbt4.write_file("output/debug/debug_layout2_flipped.nbt")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_flipped")
+        test_index += 1
 
-            # Add to spawner, spaced out (do not include .nbt in structure block string)
-            spawner_nbt.add_structure_block([i * 10, 0, 0], base_name)
+        # Test 5-8: Layout2 Rotations
+        for rot in range(1, 4):
+            nbt_rot = CustomNBT()
+            l_rot = Layout2(nbt=nbt_rot)
+            l_rot.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+            l_rot.rotate(rot)
+            l_rot.write_nbt()
+            nbt_rot.write_file(f"output/debug/debug_layout2_rot{rot}.nbt")
+            spawner_nbt.add_structure_block([test_index * 15, 0, 0], f"debug_layout2_rot{rot}")
+            test_index += 1
 
+        # Test 9: Complete Serpentine Assembly
+        # Creates a 10-tick sequence to test StructureGenerator's automatic snake routing
+        data_seq = {
+            'tick': list(range(0, 20, 2)),
+            'note entier': [make_notes(random.randint(1, 6)) for _ in range(10)],
+            'note demi': [make_notes(random.randint(0, 4)) for _ in range(10)]
+        }
+        df_seq = pd.DataFrame(data_seq).set_index('tick')
+
+        nbt_seq = CustomNBT()
+        gen_seq = StructureGenerator(df_seq, nbt_seq, layout_type="Layout2")
+        gen_seq.generate_blocks()
+        gen_seq.global_data.write_nbt(nbt_seq)
+        nbt_seq.write_file("output/debug/debug_assembly_serpentine.nbt")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_assembly_serpentine")
+        test_index += 1
+
+        # Output the master spawner
         spawner_nbt.write_file("output/debug/debug_spawner.nbt")
-        st.success(f"Successfully generated {num_test_segments} bricks and spawner in output/debug/")
+
+        st.success(f"Successfully generated 9 complex test bricks and 1 assembly sequence in `output/debug/`")
