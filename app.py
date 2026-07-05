@@ -233,6 +233,12 @@ with tab3:
         from core.customNBT import CustomNBT
         from core.StructureGenerator import StructureGenerator
 
+        try:
+            from tools.visualize_nbt import render_data_to_image
+            CAN_VISUALIZE = True
+        except ImportError:
+            CAN_VISUALIZE = False
+
         st.write("Generating debug lego bricks...")
 
         if not os.path.exists("output/debug"):
@@ -252,6 +258,8 @@ with tab3:
         l1.data.clean(nbt1.get_index_safe("minecraft:stone"))
         l1.write_nbt()
         nbt1.write_file("output/debug/debug_layout1_dense.nbt")
+        if CAN_VISUALIZE:
+            render_data_to_image(l1.data.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense", "output/debug_images/debug_layout1_dense.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_dense")
         test_index += 1
 
@@ -262,6 +270,8 @@ with tab3:
         l2.data.clean(nbt2.get_index_safe("minecraft:stone"))
         l2.write_nbt()
         nbt2.write_file("output/debug/debug_layout2_dense.nbt")
+        if CAN_VISUALIZE:
+            render_data_to_image(l2.data.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense", "output/debug_images/debug_layout2_dense.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense")
         test_index += 1
 
@@ -272,6 +282,8 @@ with tab3:
         l3.data.clean(nbt3.get_index_safe("minecraft:stone"))
         l3.write_nbt()
         nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
+        if CAN_VISUALIZE:
+            render_data_to_image(l3.data.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense (Symmetric)", "output/debug_images/debug_layout2_dense_sym.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense_sym")
         test_index += 1
 
@@ -283,6 +295,8 @@ with tab3:
         l4.data.clean(nbt4.get_index_safe("minecraft:stone"))
         l4.write_nbt()
         nbt4.write_file("output/debug/debug_layout2_flipped.nbt")
+        if CAN_VISUALIZE:
+            render_data_to_image(l4.data.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped", "output/debug_images/debug_layout2_flipped.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_flipped")
         test_index += 1
 
@@ -295,6 +309,8 @@ with tab3:
             l_rot.data.clean(nbt_rot.get_index_safe("minecraft:stone"))
             l_rot.write_nbt()
             nbt_rot.write_file(f"output/debug/debug_layout2_rot{rot}.nbt")
+            if CAN_VISUALIZE:
+                render_data_to_image(l_rot.data.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rotation {rot}", f"output/debug_images/debug_layout2_rot{rot}.png")
             spawner_nbt.add_structure_block([test_index * 15, 0, 0], f"debug_layout2_rot{rot}")
             test_index += 1
 

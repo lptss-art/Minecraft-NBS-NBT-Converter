@@ -8,6 +8,16 @@ from core.customNBT import CustomNBT
 from core.Layout2 import Layout2
 from core.MusicData import prep_data, Note
 import core.ReadNBS as ReadNBS
+import sys
+import os
+
+# Add tools to path to allow importing the visualizer
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+try:
+    from tools.visualize_nbt import render_data_to_image
+    CAN_VISUALIZE = True
+except ImportError:
+    CAN_VISUALIZE = False
 
 class TestDataClass(unittest.TestCase):
     def test_initialization(self):
@@ -80,6 +90,14 @@ class TestLayout1(unittest.TestCase):
         # Check if data was populated
         self.assertTrue(len(layout.data.blocks) > 0)
 
+        if CAN_VISUALIZE:
+            render_data_to_image(
+                layout.data.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 1",
+                output_path="output/debug_images/test_layout1.png"
+            )
+
     def test_write_nbt(self):
         nbt = CustomNBT()
         from core.Layout1 import Layout1
@@ -102,6 +120,14 @@ class TestLayout2(unittest.TestCase):
 
         # Check if data was populated
         self.assertTrue(len(layout.data.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            render_data_to_image(
+                layout.data.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 2",
+                output_path="output/debug_images/test_layout2.png"
+            )
 
     def test_write_nbt(self):
         nbt = CustomNBT()

@@ -65,13 +65,22 @@ class StructureGenerator:
                     pos[2] += 1
                 direction += 1
             else:
-                # Layout1 (Minecart) just goes straight
+                # Layout1 (straight line) progresses 2 blocks per tick (Repeater + Block)
                 layout.add(tick_diff, notes_entier, notes_demi)
-                pos[0] += 1
+                pos[0] += 2
 
             # Merge the placed layout section
             self.global_data.add_data(layout.data)
             last_tick = tick
+
+        # Before decoration, we must resolve all 'needs_down' constraints
+        # using a default floor block, e.g. stone or wood if specified
+        if self.palettes and self.palettes.get('floor'):
+            floor_index = self.nbt_template.get_index(f"minecraft:{self.palettes['floor'][0]}")
+        else:
+            floor_index = self.nbt_template.get_index_safe("minecraft:stone")
+
+        self.global_data.clean(floor_index)
 
         self.apply_decoration()
 

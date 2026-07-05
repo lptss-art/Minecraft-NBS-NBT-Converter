@@ -30,7 +30,7 @@ class Layout2:
 
         self.index_redstone = self.custom_nbt.get_index("minecraft:redstone_wire", {'east': 'side', 'west': 'side'})
         self.index_redstone_block = self.custom_nbt.get_index("minecraft:redstone_block")
-        self.index_lamp = self.custom_nbt.get_index("minecraft:redstone_lamp")
+        self.index_wood = self.custom_nbt.get_index_safe("minecraft:oak_planks")
         self.index_air = self.custom_nbt.get_index("minecraft:air")
         self.index_floor = -1 # self.custom_nbt.get_index("minecraft:stone")
 
@@ -137,7 +137,7 @@ class Layout2:
 
         # Central block
         if integer_note_count == 0:
-            self.add_block(1, 0, 0, self.index_lamp)
+            self.add_block(1, 0, 0, self.index_wood)
         if integer_note_count >= 1:
             self.add_note(1, 0, 0, notes_integer[0])
             
