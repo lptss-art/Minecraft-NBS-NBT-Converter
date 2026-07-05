@@ -91,6 +91,10 @@ class TestLayout1(unittest.TestCase):
         self.assertTrue(len(layout.data.blocks) > 0)
 
         if CAN_VISUALIZE:
+            # We must apply clean() with a floor to resolve needs_down like in the real app
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            layout.data.clean(floor_idx)
+
             render_data_to_image(
                 layout.data.blocks,
                 nbt_palette=nbt.nbtfile['palette'],
@@ -122,6 +126,9 @@ class TestLayout2(unittest.TestCase):
         self.assertTrue(len(layout.data.blocks) > 0)
 
         if CAN_VISUALIZE:
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            layout.data.clean(floor_idx)
+
             render_data_to_image(
                 layout.data.blocks,
                 nbt_palette=nbt.nbtfile['palette'],

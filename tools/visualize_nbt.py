@@ -1,103 +1,198 @@
 import os
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
+import math
+import random
+from PIL import Image, ImageDraw
 
-# A basic map of block indices/names to colors for the visualizer
-COLOR_MAP = {
-    "minecraft:redstone_wire": (1.0, 0.0, 0.0, 0.5), # Translucent red
-    "minecraft:redstone_block": (0.8, 0.0, 0.0, 0.9),
-    "minecraft:stone": (0.5, 0.5, 0.5, 0.8),
-    "minecraft:oak_planks": (0.6, 0.4, 0.2, 0.8),
-    "minecraft:repeater": (0.9, 0.9, 0.9, 0.6),
-    "minecraft:sticky_piston": (0.2, 0.8, 0.2, 0.8),
-    "minecraft:note_block": (0.8, 0.6, 0.2, 0.9),
-    "minecraft:air": (0, 0, 0, 0),
-    # Default fallbacks
-    "instrument": (0.4, 0.3, 0.1, 0.8),
-    "default": (0.8, 0.8, 0.8, 0.3)
-}
+TILE_WIDTH = 64
+TILE_HEIGHT = 32
+BLOCK_Z_HEIGHT = 32
+
+def draw_polygon(draw, points, fill, outline):
+    draw.polygon(points, fill=fill, outline=outline)
 
 def get_block_name_from_index(nbt_palette, index):
-    """Attempt to find the block name from the palette"""
     try:
         entry = nbt_palette[index]
         return entry["Name"].value
     except:
         return "unknown"
 
+def generate_cube_sprite(color_top, color_left, color_right, outline, name="stone", is_flat=False, alpha=255, height_ratio=1.0):
+    img = Image.new('RGBA', (TILE_WIDTH, TILE_HEIGHT + int(BLOCK_Z_HEIGHT * height_ratio)), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    w = TILE_WIDTH
+    h = TILE_HEIGHT
+    z = int(BLOCK_Z_HEIGHT * height_ratio)
+
+    # Bottom center is (w/2, h + z)
+    top_points = [
+        (w/2, z),
+        (w, h/2 + z),
+        (w/2, h + z),
+        (0, h/2 + z)
+    ]
+
+    if is_flat:
+        # Flat like redstone wire, render at bottom of block space
+        flat_points = [
+            (w/2, z + h),
+            (w*0.8, h/2 + z + h*0.2),
+            (w/2, h + z + h*0.4),
+            (w*0.2, h/2 + z + h*0.2)
+        ]
+        color_top = list(color_top)
+        color_top[3] = alpha
+        draw_polygon(draw, flat_points, fill=tuple(color_top), outline=outline)
+        return img
+
+    left_points = [
+        (0, h/2 + z),
+        (w/2, h + z),
+        (w/2, h),
+        (0, h/2)
+    ]
+
+    right_points = [
+        (w/2, h + z),
+        (w, h/2 + z),
+        (w, h/2),
+        (w/2, h)
+    ]
+
+    top_points = [(p[0], p[1] - z) for p in top_points]
+
+    color_top_a = list(color_top)
+    color_top_a[3] = alpha
+    color_left_a = list(color_left)
+    color_left_a[3] = alpha
+    color_right_a = list(color_right)
+    color_right_a[3] = alpha
+
+    draw_polygon(draw, left_points, fill=tuple(color_left_a), outline=outline)
+    draw_polygon(draw, right_points, fill=tuple(color_right_a), outline=outline)
+    draw_polygon(draw, top_points, fill=tuple(color_top_a), outline=outline)
+
+    # Texture details based on name
+    if "oak_planks" in name or "instrument" in name:
+        # Draw horizontal plank lines
+        for i in range(1, 4):
+            ly = h/2 + z - (i * z/4)
+            ry = h/2 + z - (i * z/4)
+            draw.line([(0, h/2 + ly - z), (w/2, h + ly - z)], fill=(80, 50, 20, 100), width=1)
+            draw.line([(w/2, h + ry - z), (w, h/2 + ry - z)], fill=(80, 50, 20, 100), width=1)
+
+    if "stone" in name and "redstone" not in name:
+        # Draw noise
+        for _ in range(20):
+            rx = random.randint(0, w)
+            ry = random.randint(0, int(h + z))
+            draw.point((rx, ry), fill=(80, 80, 80, 50))
+
+    if "note_block" in name:
+        # Wooden border outline
+        draw.line(left_points + [left_points[0]], fill=(80, 50, 20, 255), width=2)
+        draw.line(right_points + [right_points[0]], fill=(80, 50, 20, 255), width=2)
+        draw.line(top_points + [top_points[0]], fill=(80, 50, 20, 255), width=2)
+        # Note dot
+        draw.polygon([(w*0.25, h*0.75 + z*0.5), (w*0.35, h*0.8 + z*0.5), (w*0.35, h*0.8 + z*0.2), (w*0.25, h*0.75 + z*0.2)], fill=(40,40,40,255))
+        draw.polygon([(w*0.75, h*0.75 + z*0.5), (w*0.65, h*0.8 + z*0.5), (w*0.65, h*0.8 + z*0.2), (w*0.75, h*0.75 + z*0.2)], fill=(40,40,40,255))
+
+    if "repeater" in name:
+        # Draw redstone torches on top
+        draw.rectangle([w*0.3, z-h*0.5, w*0.35, z-h*0.2], fill=(200,0,0,255))
+        draw.rectangle([w*0.6, z-h*0.2, w*0.65, z+h*0.1], fill=(200,0,0,255))
+
+    return img
+
+def get_sprite_for_block(name):
+    # Default Stone
+    c_top, c_left, c_right, outline = (120, 120, 120, 255), (100, 100, 100, 255), (80, 80, 80, 255), (60, 60, 60, 255)
+    flat = False
+    alpha = 255
+    hr = 1.0
+
+    if "redstone_wire" in name:
+        c_top = (255, 0, 0, 255)
+        flat = True
+        alpha = 150
+    elif "redstone_block" in name:
+        c_top, c_left, c_right = (220, 0, 0, 255), (180, 0, 0, 255), (140, 0, 0, 255)
+        outline = (100, 0, 0, 255)
+    elif "oak_planks" in name or "instrument" in name:
+        c_top, c_left, c_right = (160, 110, 50, 255), (140, 90, 40, 255), (120, 70, 30, 255)
+        outline = (80, 50, 20, 255)
+    elif "note_block" in name:
+        c_top, c_left, c_right = (180, 130, 60, 255), (160, 110, 50, 255), (140, 90, 40, 255)
+        outline = (80, 50, 20, 255)
+    elif "sticky_piston" in name:
+        # Green top, stone sides
+        c_top = (100, 200, 100, 255)
+        c_left, c_right = (100, 100, 100, 255), (80, 80, 80, 255)
+        outline = (60, 60, 60, 255)
+    elif "repeater" in name:
+        c_top, c_left, c_right = (200, 200, 200, 255), (160, 160, 160, 255), (140, 140, 140, 255)
+        hr = 0.2
+
+    return generate_cube_sprite(c_top, c_left, c_right, outline, name=name, is_flat=flat, alpha=alpha, height_ratio=hr)
+
 def render_data_to_image(data_blocks, nbt_palette=None, title="NBT Structure", output_path="output.png"):
-    """
-    Renders a 3D scatter/voxel plot of the blocks and saves it to output_path.
-    """
     if not data_blocks:
         print(f"No blocks to render for {title}")
         return
 
-    # Extract coordinates
-    xs = [b['pos'][0] for b in data_blocks]
-    ys = [b['pos'][1] for b in data_blocks]
-    zs = [b['pos'][2] for b in data_blocks]
+    # To draw properly: sort by Y ascending, then X descending, then Z descending
+    # X axis points "down-right" and Z axis points "down-left"
+    sorted_blocks = sorted(data_blocks, key=lambda b: (b['pos'][1], -b['pos'][0], -b['pos'][2]))
 
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
-    min_z, max_z = min(zs), max(zs)
+    xs = [b['pos'][0] for b in sorted_blocks]
+    ys = [b['pos'][1] for b in sorted_blocks]
+    zs = [b['pos'][2] for b in sorted_blocks]
 
-    size_x = max_x - min_x + 1
-    size_y = max_y - min_y + 1
-    size_z = max_z - min_z + 1
+    def to_iso(x, y, z):
+        iso_x = (x - z) * (TILE_WIDTH / 2)
+        iso_y = (x + z) * (TILE_HEIGHT / 2) - (y * BLOCK_Z_HEIGHT)
+        return iso_x, iso_y
 
-    # Create voxel grid
-    voxels = np.zeros((size_x, size_y, size_z), dtype=bool)
-    colors = np.empty(voxels.shape, dtype=object)
+    iso_coords = [to_iso(x, y, z) for x, y, z in zip(xs, ys, zs)]
+    min_iso_x = min(c[0] for c in iso_coords)
+    max_iso_x = max(c[0] for c in iso_coords)
+    min_iso_y = min(c[1] for c in iso_coords)
+    max_iso_y = max(c[1] for c in iso_coords)
 
-    for block in data_blocks:
-        x = block['pos'][0] - min_x
-        y = block['pos'][1] - min_y
-        z = block['pos'][2] - min_z
+    img_w = int(max_iso_x - min_iso_x + TILE_WIDTH * 2)
+    img_h = int(max_iso_y - min_iso_y + TILE_HEIGHT * 2 + BLOCK_Z_HEIGHT * 2)
 
-        block_idx = block['index']
-        name = get_block_name_from_index(nbt_palette, block_idx) if nbt_palette else "unknown"
+    img = Image.new('RGBA', (img_w, img_h), (255, 255, 255, 255))
 
-        # Heuristics for instruments/notes if unknown
-        color = COLOR_MAP.get(name, COLOR_MAP["default"])
-        if block_idx >= 0 and nbt_palette:
-            # Check if it's in the note block or instrument range
-            if "note_block" in name:
-                color = COLOR_MAP["minecraft:note_block"]
-            elif "stone" in name or "planks" in name or "glass" in name or "wool" in name or "clay" in name or "sand" in name or "block" in name or "ice" in name or "pumpkin" in name or "glowstone" in name:
-                 if not ("redstone" in name or "piston" in name):
-                    color = COLOR_MAP["instrument"]
+    sprites = {}
 
-        if name == "minecraft:air":
+    for block in sorted_blocks:
+        x, y, z = block['pos']
+        idx = block['index']
+        name = get_block_name_from_index(nbt_palette, idx) if nbt_palette else "unknown"
+
+        if "air" in name:
             continue
 
-        voxels[x, y, z] = True
-        colors[x, y, z] = color
+        if idx >= 0 and nbt_palette:
+            if "stone" in name or "planks" in name or "glass" in name or "wool" in name or "clay" in name or "sand" in name or "block" in name or "ice" in name or "pumpkin" in name or "glowstone" in name:
+                 if not ("redstone" in name or "piston" in name or "note" in name):
+                    name = "instrument"
 
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
+        if name not in sprites:
+            sprites[name] = get_sprite_for_block(name)
 
-    ax.voxels(voxels, facecolors=colors, edgecolor='k', linewidth=0.5)
+        sprite = sprites[name]
 
-    # Set labels and title
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y (Vertical)')
-    ax.set_zlabel('Z')
-    ax.set_title(title)
+        iso_x, iso_y = to_iso(x, y, z)
 
-    # Ensure proportional scaling
-    max_range = np.array([size_x, size_y, size_z]).max()
-    Xb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][0].flatten() + 0.5*(size_x)
-    Yb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][1].flatten() + 0.5*(size_y)
-    Zb = 0.5*max_range*np.mgrid[-1:2:2,-1:2:2,-1:2:2][2].flatten() + 0.5*(size_z)
-    for xb, yb, zb in zip(Xb, Yb, Zb):
-        ax.plot([xb], [yb], [zb], 'w')
+        draw_x = int(iso_x - min_iso_x + TILE_WIDTH / 2)
+        draw_y = int(iso_y - min_iso_y + TILE_HEIGHT + BLOCK_Z_HEIGHT)
 
-    # Rotate for better isometric view
-    ax.view_init(elev=30, azim=45)
+        # Transparent blocks (redstone) should paste with alpha
+        img.paste(sprite, (draw_x, draw_y), sprite)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
+    img.save(output_path)
     print(f"Saved visualization to {output_path}")
