@@ -76,13 +76,16 @@ class CustomNBT:
         """
         Gets the index of a block in the palette, adding it if necessary.
         """
+        if not block_name.startswith("minecraft:"):
+            block_name = "minecraft:" + block_name
+
         if properties is not None:
-            return self.get_index("minecraft:" + block_name, properties)
+            return self.get_index(block_name, properties)
         else:
             if block_name in self.custom_index.keys():
                 return self.custom_index[block_name]
             else:
-                self.custom_index[block_name] = self.get_index("minecraft:" + block_name, properties)
+                self.custom_index[block_name] = self.get_index(block_name, properties)
                 return self.custom_index[block_name]
                 
     def get_index(self, name, properties=None):

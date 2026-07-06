@@ -218,24 +218,8 @@ def export_topdown_grid(data_blocks, nbt_palette=None, title="NBT Grid", csv_pat
         if "air" in name:
             continue
 
-        # Clean up name for display
-        display_name = name.replace("minecraft:", "")
-        if "note_block" in display_name:
-            display_name = "Note"
-        elif "repeater" in display_name:
-            display_name = "Rep"
-        elif "redstone_wire" in display_name:
-            display_name = "RedWire"
-        elif "redstone_block" in display_name:
-            display_name = "RedBlk"
-        elif "sticky_piston" in display_name:
-            display_name = "Piston"
-        elif "oak_planks" in display_name:
-            display_name = "Wood"
-        elif "stone" in display_name:
-            display_name = "Stone"
-
-        grid[(x, z)].append((y, display_name))
+        # Keep name pure without replacing or formatting
+        grid[(x, z)].append((y, name))
 
     if not grid:
         return
