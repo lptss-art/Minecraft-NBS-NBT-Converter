@@ -1,8 +1,8 @@
 import numpy as np
 from core.customNBT import CustomNBT
 from core.brick import Brick
-from core.Layout1 import Layout1
-from core.Layout2 import Layout2
+from core.Layout1 import Layout1Track
+from core.Layout2 import Layout2Track
 
 class StructureGenerator:
     """
@@ -17,61 +17,14 @@ class StructureGenerator:
         self.palettes = palettes or {}
 
     def generate_blocks(self):
-        """Processes notes and maps them to a global Brick structure using the selected layout."""
-        self.global_data = Brick()
-        last_tick = -1
-        direction = 0
-        pos = [1, 0, 0]
+        """Processes notes and maps them to a global Brick structure using the selected layout track."""
+        if "Layout1" in self.layout_type:
+            track = Layout1Track(nbt_template=self.nbt_template)
+        else:
+            track = Layout2Track(nbt_template=self.nbt_template)
 
-        for tick in self.df_notes.index:
-            tick_diff = int(tick - last_tick)
-
-            # Instantiate the chosen layout
-            if "Layout1" in self.layout_type:
-                layout = Layout1(nbt=self.nbt_template)
-            else:
-                layout = Layout2(nbt=self.nbt_template)
-
-            layout.tick = int(last_tick)
-
-            # Get notes for this tick
-            notes_entier = self.df_notes.loc[tick]['note entier']
-            notes_demi = self.df_notes.loc[tick]['note demi']
-
-            # Set position BEFORE advancing the coordinates for the next tick
-            layout.position = [pos[0], pos[1], pos[2]]
-
-            # Basic serpentine logic (can be expanded for straight Minecart logic)
-            if "Layout2" in self.layout_type:
-                if direction % 4 == 0:
-                    layout.build(tick_diff, notes_entier, notes_demi, is_symmetric=True)
-                    pos[0] += 1
-                    pos[2] += -2
-                elif direction % 4 == 1:
-                    layout.build(tick_diff, notes_entier, notes_demi)
-                    layout.flip()
-                    layout.rotate(3, self.nbt_template) # -1 is 3 in mod 4
-                    pos[0] += 2
-                    pos[2] += -1
-                elif direction % 4 == 2:
-                    layout.build(tick_diff, notes_entier, notes_demi, is_symmetric=True)
-                    layout.flip()
-                    pos[0] += 1
-                    pos[2] += 2
-                else:
-                    layout.build(tick_diff, notes_entier, notes_demi)
-                    layout.rotate(1, self.nbt_template)
-                    pos[0] += 2
-                    pos[2] += 1
-                direction += 1
-            else:
-                # Layout1 (straight line) progresses 2 blocks per tick (Repeater + Block)
-                layout.build(tick_diff, notes_entier, notes_demi)
-                pos[0] += 2
-
-            # Merge the placed layout section
-            self.global_data.add_data(layout)
-            last_tick = tick
+        track.build_sequence(self.df_notes)
+        self.global_data = track
 
         # Before decoration, we must resolve all 'needs_down' constraints
         # using a default floor block, e.g. stone or wood if specified

@@ -5,7 +5,8 @@ import pandas as pd
 import numpy as np
 from core.brick import Brick
 from core.customNBT import CustomNBT
-from core.Layout2 import Layout2
+from core.Layout2 import Layout2Brick
+from core.Layout1 import Layout1Brick
 from core.MusicData import prep_data, Note
 import core.ReadNBS as ReadNBS
 import sys
@@ -79,8 +80,7 @@ class TestCustomNBT(unittest.TestCase):
 class TestLayout1(unittest.TestCase):
     def test_add_notes(self):
         nbt = CustomNBT()
-        from core.Layout1 import Layout1
-        layout = Layout1(nbt=nbt)
+        layout = Layout1Brick(nbt=nbt)
 
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
@@ -111,8 +111,7 @@ class TestLayout1(unittest.TestCase):
 
     def test_write_nbt(self):
         nbt = CustomNBT()
-        from core.Layout1 import Layout1
-        layout = Layout1(nbt=nbt)
+        layout = Layout1Brick(nbt=nbt)
         layout.add_block(0, 0, 0, 1)
 
         initial_blocks = len(nbt.nbtfile['blocks'])
@@ -122,7 +121,7 @@ class TestLayout1(unittest.TestCase):
 class TestLayout2(unittest.TestCase):
     def test_add_notes(self):
         nbt = CustomNBT()
-        layout = Layout2(nbt=nbt)
+        layout = Layout2Brick(nbt=nbt)
 
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
@@ -152,7 +151,7 @@ class TestLayout2(unittest.TestCase):
 
     def test_write_nbt(self):
         nbt = CustomNBT()
-        layout = Layout2(nbt=nbt)
+        layout = Layout2Brick(nbt=nbt)
         layout.add_block(0, 0, 0, 1)
 
         initial_blocks = len(nbt.nbtfile['blocks'])

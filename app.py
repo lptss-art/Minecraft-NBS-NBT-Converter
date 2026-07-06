@@ -228,8 +228,8 @@ with tab3:
     if st.button("Generate Test Blocks"):
         import random
         from core.MusicData import Note
-        from core.Layout2 import Layout2
-        from core.Layout1 import Layout1
+        from core.Layout2 import Layout2Brick
+        from core.Layout1 import Layout1Brick
         from core.customNBT import CustomNBT
         from core.StructureGenerator import StructureGenerator
 
@@ -253,7 +253,7 @@ with tab3:
 
         # Test 1: Dense Layout1
         nbt1 = CustomNBT()
-        l1 = Layout1(nbt=nbt1)
+        l1 = Layout1Brick(nbt=nbt1)
         l1.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
         l1.clean(nbt1.get_index_safe("minecraft:stone"))
         l1.write_nbt()
@@ -266,7 +266,7 @@ with tab3:
 
         # Test 2: Dense Layout2 (Base)
         nbt2 = CustomNBT()
-        l2 = Layout2(nbt=nbt2)
+        l2 = Layout2Brick(nbt=nbt2)
         l2.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
         l2.clean(nbt2.get_index_safe("minecraft:stone"))
         l2.write_nbt()
@@ -279,7 +279,7 @@ with tab3:
 
         # Test 3: Dense Layout2 (Symmetric)
         nbt3 = CustomNBT()
-        l3 = Layout2(nbt=nbt3)
+        l3 = Layout2Brick(nbt=nbt3)
         l3.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10), is_symmetric=True)
         l3.clean(nbt3.get_index_safe("minecraft:stone"))
         l3.write_nbt()
@@ -292,7 +292,7 @@ with tab3:
 
         # Test 4: Layout2 Flipped
         nbt4 = CustomNBT()
-        l4 = Layout2(nbt=nbt4)
+        l4 = Layout2Brick(nbt=nbt4)
         l4.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
         l4.flip()
         l4.clean(nbt4.get_index_safe("minecraft:stone"))
@@ -307,7 +307,7 @@ with tab3:
         # Test 5-8: Layout2 Rotations
         for rot in range(1, 4):
             nbt_rot = CustomNBT()
-            l_rot = Layout2(nbt=nbt_rot)
+            l_rot = Layout2Brick(nbt=nbt_rot)
             l_rot.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
             l_rot.rotate(rot, nbt_rot)
             l_rot.clean(nbt_rot.get_index_safe("minecraft:stone"))

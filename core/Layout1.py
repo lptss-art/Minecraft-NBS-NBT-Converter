@@ -1,42 +1,15 @@
 import numpy as np
 from core.customNBT import CustomNBT
+from core.layout_base import LayoutBase
 from core.brick import Brick
 
-class Layout1(Brick):
+class Layout1Brick(LayoutBase):
     """
-    Manages a straight line layout (Repeater -> Block).
-    Now inherits directly from Brick.
+    Manages a straight line layout (Repeater -> Block) for a single tick.
+    Inherits from LayoutBase.
     """
     def __init__(self, nbt=None, start_x=0, start_y=0, start_z=0):
         super().__init__(x=start_x, y=start_y, z=start_z, nbt=nbt)
-        self.start_x = start_x
-        self.start_y = start_y
-        self.start_z = start_z
-
-        self.custom_nbt = nbt
-        self.tick = 0
-
-        if nbt:
-            self.index_stone = self.custom_nbt.get_index_safe("minecraft:stone")
-            self.index_wood = self.custom_nbt.get_index_safe("minecraft:oak_planks")
-            self.index_redstone = self.custom_nbt.get_index("minecraft:redstone_wire", {'east': 'side', 'west': 'side'})
-            self.index_piston = self.custom_nbt.index_pistons["east"]
-            self.index_redstone_block = self.custom_nbt.get_index_safe("minecraft:redstone_block")
-            self.index_repeater = self.custom_nbt.index_repeaters["west"]
-
-            self.offset_notes = self.custom_nbt.index_notes
-            self.offset_instr = self.custom_nbt.index_instr
-            self.index_air = self.custom_nbt.get_index_safe("minecraft:air")
-        else:
-            self.index_stone = -1
-            self.index_wood = -1
-            self.index_redstone = -1
-            self.index_piston = -1
-            self.index_redstone_block = -1
-            self.index_repeater = -1
-            self.offset_notes = -1
-            self.offset_instr = -1
-            self.index_air = -1
 
     def build(self, tick_delay, notes_integer=None, notes_half=None, is_symmetric=False):
         """
@@ -118,20 +91,38 @@ class Layout1(Brick):
 
         self.tick += 1
 
-    def add_note(self, x, y, z, note):
-        if not hasattr(note, 'note'):
-            return
-        # Instrument block
-        self.add_block(x, y - 1, z, note.instr + self.offset_instr, needs_down=True)
-        # Note block
-        self.add_block(x, y, z, note.note + self.offset_notes)
-        # Air block
-        self.add_block(x, y + 1, z, self.index_air)
+class Layout1Track(Brick):
+    """
+    Manages a sequence of Layout1Bricks, assembling them into a continuous straight line.
+    """
+    def __init__(self, nbt_template=None):
+        super().__init__()
+        self.nbt_template = nbt_template
 
-    def add_block(self, x, y, z, index, random_delay_range=-1, needs_down=False, needs_up=False):
-        if index == -1: return
-        super().add_block(x, y, z, index, self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up)
+    def build_sequence(self, df_notes):
+        """Processes notes and maps them to a continuous straight line of bricks."""
+        last_tick = -1
+        pos = [1, 0, 0]
 
-    def write_nbt(self):
-        """Writes the layout data to the customNBT object."""
-        super().write_nbt(self.custom_nbt)
+        for tick in df_notes.index:
+            tick_diff = int(tick - last_tick)
+
+            brick = Layout1Brick(nbt=self.nbt_template)
+            brick.tick = int(last_tick)
+
+            # Get notes for this tick
+            notes_entier = df_notes.loc[tick]['note entier']
+            notes_demi = df_notes.loc[tick]['note demi']
+
+            # Build the brick
+            brick.build(tick_diff, notes_entier, notes_demi)
+
+            # Translate to current global track position
+            brick.position = [pos[0], pos[1], pos[2]]
+
+            # Layout1 progresses 2 blocks per tick on the X axis
+            pos[0] += 2
+
+            # Merge the brick into this track
+            self.add_data(brick)
+            last_tick = tick
