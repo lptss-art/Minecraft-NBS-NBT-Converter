@@ -3,7 +3,7 @@ import os
 import shutil
 import pandas as pd
 import numpy as np
-from core.data import Data
+from core.brick import Brick
 from core.customNBT import CustomNBT
 from core.Layout2 import Layout2
 from core.MusicData import prep_data, Note
@@ -14,19 +14,19 @@ import os
 # Add tools to path to allow importing the visualizer
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 try:
-    from tools.visualize_nbt import render_data_to_image
+    from tools.visualize_nbt import render_data_to_image, export_topdown_grid
     CAN_VISUALIZE = True
 except ImportError:
     CAN_VISUALIZE = False
 
-class TestDataClass(unittest.TestCase):
+class TestBrickClass(unittest.TestCase):
     def test_initialization(self):
-        data = Data()
+        data = Brick()
         self.assertEqual(data.position, [0, 0, 0])
         self.assertEqual(len(data.blocks), 0)
 
     def test_add_block_and_clean(self):
-        data = Data()
+        data = Brick()
 
         # Add block
         data.add_block(0, 0, 0, 1)
@@ -44,7 +44,7 @@ class TestDataClass(unittest.TestCase):
         self.assertEqual(data.blocks[0]['index'], 2)
 
     def test_set_layers(self):
-        data = Data()
+        data = Brick()
         data.add_block(0, 0, 0, 1, tick=10, random_delay_range=5)
         data.set_layers(default_random_amount=5)
         # Layer should be set based on tick and random
@@ -85,21 +85,28 @@ class TestLayout1(unittest.TestCase):
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
 
-        layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+        layout.build(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
 
         # Check if data was populated
-        self.assertTrue(len(layout.data.blocks) > 0)
+        self.assertTrue(len(layout.blocks) > 0)
 
         if CAN_VISUALIZE:
             # We must apply clean() with a floor to resolve needs_down like in the real app
             floor_idx = nbt.get_index_safe("minecraft:stone")
-            layout.data.clean(floor_idx)
+            layout.clean(floor_idx)
 
             render_data_to_image(
-                layout.data.blocks,
+                layout.blocks,
                 nbt_palette=nbt.nbtfile['palette'],
                 title="Test Layout 1",
                 output_path="output/debug_images/test_layout1.png"
+            )
+            export_topdown_grid(
+                layout.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 1 Grid",
+                csv_path="output/debug_images/test_layout1_grid.csv",
+                img_path="output/debug_images/test_layout1_grid.png"
             )
 
     def test_write_nbt(self):
@@ -120,20 +127,27 @@ class TestLayout2(unittest.TestCase):
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
 
-        layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+        layout.build(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
 
         # Check if data was populated
-        self.assertTrue(len(layout.data.blocks) > 0)
+        self.assertTrue(len(layout.blocks) > 0)
 
         if CAN_VISUALIZE:
             floor_idx = nbt.get_index_safe("minecraft:stone")
-            layout.data.clean(floor_idx)
+            layout.clean(floor_idx)
 
             render_data_to_image(
-                layout.data.blocks,
+                layout.blocks,
                 nbt_palette=nbt.nbtfile['palette'],
                 title="Test Layout 2",
                 output_path="output/debug_images/test_layout2.png"
+            )
+            export_topdown_grid(
+                layout.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 2 Grid",
+                csv_path="output/debug_images/test_layout2_grid.csv",
+                img_path="output/debug_images/test_layout2_grid.png"
             )
 
     def test_write_nbt(self):

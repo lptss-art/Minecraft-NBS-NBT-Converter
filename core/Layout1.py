@@ -1,20 +1,19 @@
 import numpy as np
 from core.customNBT import CustomNBT
-from core.data import Data
+from core.brick import Brick
 
-class Layout1:
+class Layout1(Brick):
     """
-    Manages the older "Minecart" layout with stacked lanes and a central decoration.
-    Extracted from the Nouveau Layout.ipynb notebook logic.
+    Manages a straight line layout (Repeater -> Block).
+    Now inherits directly from Brick.
     """
     def __init__(self, nbt=None, start_x=0, start_y=0, start_z=0):
+        super().__init__(x=start_x, y=start_y, z=start_z, nbt=nbt)
         self.start_x = start_x
         self.start_y = start_y
         self.start_z = start_z
-        self.pos = [0, 0, 0]
 
         self.custom_nbt = nbt
-        self.data = Data()
         self.tick = 0
 
         if nbt:
@@ -39,9 +38,9 @@ class Layout1:
             self.offset_instr = -1
             self.index_air = -1
 
-    def add(self, tick_delay, notes_integer=None, notes_half=None, is_symmetric=False):
+    def build(self, tick_delay, notes_integer=None, notes_half=None, is_symmetric=False):
         """
-        Adds a single tick's worth of blocks for the straight layout.
+        Builds a single tick's worth of blocks for the straight layout.
         Uses a straight redstone line: Repeater -> Block -> Repeater.
         Notes branch off sideways.
         """
@@ -119,30 +118,20 @@ class Layout1:
 
         self.tick += 1
 
-    def _roll(self, shift):
-        for block in self.data.blocks:
-            block['pos'][0] += shift
-
     def add_note(self, x, y, z, note):
         if not hasattr(note, 'note'):
             return
         # Instrument block
-        self.data.add_block(x, y - 1, z, note.instr + self.offset_instr, self.tick, needs_down=True)
+        self.add_block(x, y - 1, z, note.instr + self.offset_instr, needs_down=True)
         # Note block
-        self.data.add_block(x, y, z, note.note + self.offset_notes, self.tick)
+        self.add_block(x, y, z, note.note + self.offset_notes)
         # Air block
-        self.data.add_block(x, y + 1, z, self.index_air, self.tick)
+        self.add_block(x, y + 1, z, self.index_air)
 
     def add_block(self, x, y, z, index, random_delay_range=-1, needs_down=False, needs_up=False):
         if index == -1: return
-        self.data.add_block(x, y, z, index, self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up)
-
-    def flip(self):
-        self.data.flip(self.custom_nbt)
-
-    def rotate(self, r):
-        self.data.rotate(r, self.custom_nbt)
+        super().add_block(x, y, z, index, self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up)
 
     def write_nbt(self):
         """Writes the layout data to the customNBT object."""
-        self.data.write_nbt(self.custom_nbt)
+        super().write_nbt(self.custom_nbt)

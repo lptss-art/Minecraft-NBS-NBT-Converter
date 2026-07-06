@@ -2,10 +2,10 @@ import numpy as np
 from core.customNBT import CustomNBT
 from random import randint
 
-class Data:
+class Brick:
     """
-    Manages a 3D grid of blocks as a list of block dictionaries.
-    Provides support for rotation, flipping, and NBT export.
+    Represents a 3D structure of blocks as a list of block dictionaries.
+    Provides support for translation, rotation, flipping, and NBT export.
     """
 
     def __init__(self, x=0, y=0, z=0, nbt=None, facing='south', direction=-1):
@@ -19,20 +19,27 @@ class Data:
         xs = [b['pos'][0] for b in self.blocks]
         ys = [b['pos'][1] for b in self.blocks]
         zs = [b['pos'][2] for b in self.blocks]
-        
+
         # Max dimensions from center (0,0,0) as in old implementation
         max_x = max(max(xs), abs(min(xs)))
         max_y = max(max(ys), abs(min(ys)))
         max_z = max(max(zs), abs(min(zs)))
-        
+
         return (max_x * 2 + 1, max_y * 2 + 1, max_z * 2 + 1)
-        
+
     @property
     def shape(self):
         return self.get_shape()
 
+    def translate(self, dx, dy, dz):
+        """Translates the entire brick by shifting block coordinates."""
+        for block in self.blocks:
+            block['pos'][0] += dx
+            block['pos'][1] += dy
+            block['pos'][2] += dz
+
     def add_data(self, data_b):
-        """Merges another Data object into this one, applying data_b's position offset."""
+        """Merges another Brick object into this one, applying data_b's position offset."""
         for block in data_b.blocks:
             new_block = block.copy()
             new_block['pos'] = [
@@ -125,9 +132,9 @@ class Data:
 
         if nbt is None:
             return
-        
+
         correspondence = nbt.get_rotation_index(2, True)
-        
+
         for block in self.blocks:
             if block['index'] in correspondence:
                 block['index'] = correspondence[block['index']]
@@ -141,7 +148,7 @@ class Data:
                 block['pos'][2] + self.position[2]
             ]
             nbt.add_block(pos, block['index'], metadata=block['metadata'])
-        
+
     def set_layers(self, default_random_amount=5):
         """Calculates the layer for each block based on tick and randomness."""
         # Create lookup dictionary by coordinate for dependency checking

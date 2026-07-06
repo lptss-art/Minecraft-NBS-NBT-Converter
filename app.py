@@ -234,7 +234,7 @@ with tab3:
         from core.StructureGenerator import StructureGenerator
 
         try:
-            from tools.visualize_nbt import render_data_to_image
+            from tools.visualize_nbt import render_data_to_image, export_topdown_grid
             CAN_VISUALIZE = True
         except ImportError:
             CAN_VISUALIZE = False
@@ -254,49 +254,53 @@ with tab3:
         # Test 1: Dense Layout1
         nbt1 = CustomNBT()
         l1 = Layout1(nbt=nbt1)
-        l1.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
-        l1.data.clean(nbt1.get_index_safe("minecraft:stone"))
+        l1.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l1.clean(nbt1.get_index_safe("minecraft:stone"))
         l1.write_nbt()
         nbt1.write_file("output/debug/debug_layout1_dense.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l1.data.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense", "output/debug_images/debug_layout1_dense.png")
+            render_data_to_image(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense", "output/debug_images/debug_layout1_dense.png")
+            export_topdown_grid(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense Grid", "output/debug_images/debug_layout1_dense_grid.csv", "output/debug_images/debug_layout1_dense_grid.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_dense")
         test_index += 1
 
         # Test 2: Dense Layout2 (Base)
         nbt2 = CustomNBT()
         l2 = Layout2(nbt=nbt2)
-        l2.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
-        l2.data.clean(nbt2.get_index_safe("minecraft:stone"))
+        l2.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l2.clean(nbt2.get_index_safe("minecraft:stone"))
         l2.write_nbt()
         nbt2.write_file("output/debug/debug_layout2_dense.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l2.data.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense", "output/debug_images/debug_layout2_dense.png")
+            render_data_to_image(l2.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense", "output/debug_images/debug_layout2_dense.png")
+            export_topdown_grid(l2.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense Grid", "output/debug_images/debug_layout2_dense_grid.csv", "output/debug_images/debug_layout2_dense_grid.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense")
         test_index += 1
 
         # Test 3: Dense Layout2 (Symmetric)
         nbt3 = CustomNBT()
         l3 = Layout2(nbt=nbt3)
-        l3.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10), is_symmetric=True)
-        l3.data.clean(nbt3.get_index_safe("minecraft:stone"))
+        l3.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10), is_symmetric=True)
+        l3.clean(nbt3.get_index_safe("minecraft:stone"))
         l3.write_nbt()
         nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l3.data.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense (Symmetric)", "output/debug_images/debug_layout2_dense_sym.png")
+            render_data_to_image(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense (Symmetric)", "output/debug_images/debug_layout2_dense_sym.png")
+            export_topdown_grid(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense Sym Grid", "output/debug_images/debug_layout2_dense_sym_grid.csv", "output/debug_images/debug_layout2_dense_sym_grid.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense_sym")
         test_index += 1
 
         # Test 4: Layout2 Flipped
         nbt4 = CustomNBT()
         l4 = Layout2(nbt=nbt4)
-        l4.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l4.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
         l4.flip()
-        l4.data.clean(nbt4.get_index_safe("minecraft:stone"))
+        l4.clean(nbt4.get_index_safe("minecraft:stone"))
         l4.write_nbt()
         nbt4.write_file("output/debug/debug_layout2_flipped.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l4.data.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped", "output/debug_images/debug_layout2_flipped.png")
+            render_data_to_image(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped", "output/debug_images/debug_layout2_flipped.png")
+            export_topdown_grid(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped Grid", "output/debug_images/debug_layout2_flipped_grid.csv", "output/debug_images/debug_layout2_flipped_grid.png")
         spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_flipped")
         test_index += 1
 
@@ -304,13 +308,14 @@ with tab3:
         for rot in range(1, 4):
             nbt_rot = CustomNBT()
             l_rot = Layout2(nbt=nbt_rot)
-            l_rot.add(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
-            l_rot.rotate(rot)
-            l_rot.data.clean(nbt_rot.get_index_safe("minecraft:stone"))
+            l_rot.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+            l_rot.rotate(rot, nbt_rot)
+            l_rot.clean(nbt_rot.get_index_safe("minecraft:stone"))
             l_rot.write_nbt()
             nbt_rot.write_file(f"output/debug/debug_layout2_rot{rot}.nbt")
             if CAN_VISUALIZE:
-                render_data_to_image(l_rot.data.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rotation {rot}", f"output/debug_images/debug_layout2_rot{rot}.png")
+                render_data_to_image(l_rot.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rotation {rot}", f"output/debug_images/debug_layout2_rot{rot}.png")
+                export_topdown_grid(l_rot.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rot {rot} Grid", f"output/debug_images/debug_layout2_rot{rot}_grid.csv", f"output/debug_images/debug_layout2_rot{rot}_grid.png")
             spawner_nbt.add_structure_block([test_index * 15, 0, 0], f"debug_layout2_rot{rot}")
             test_index += 1
 
