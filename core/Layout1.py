@@ -3,6 +3,25 @@ from core.customNBT import CustomNBT
 from core.layout_base import LayoutBase
 from core.brick import Brick
 
+class MinecartBrick(LayoutBase):
+    """
+    Manages the central minecart rail for Layout 1.
+    Builds a 2-block long straight rail segment (progressing along X).
+    """
+    def __init__(self, nbt=None, start_x=0, start_y=0, start_z=0):
+        super().__init__(x=start_x, y=start_y, z=start_z, nbt=nbt)
+
+    def build(self):
+        # We need a solid block under the rail
+        self.add_block(0, 0, 0, self.index_wood)
+        self.add_block(1, 0, 0, self.index_wood)
+
+        # Detector rail on the first block, powered rail on the second
+        self.add_block(0, 1, 0, self.index_detector)
+        self.add_block(1, 1, 0, self.index_rail)
+
+        self.tick += 1
+
 class Layout1Brick(LayoutBase):
     """
     Manages a straight line layout (Repeater -> Block) for a single tick.
@@ -117,12 +136,20 @@ class Layout1Track(Brick):
             # Build the brick
             brick.build(tick_diff, notes_entier, notes_demi)
 
-            # Translate to current global track position
+            # Build the parallel minecart track
+            minecart = MinecartBrick(nbt=self.nbt_template)
+            minecart.build()
+
+            # Translate both to current global track position
             brick.position = [pos[0], pos[1], pos[2]]
+
+            # The minecart track runs parallel, separated by a couple blocks on the Z axis
+            minecart.position = [pos[0], pos[1], pos[2] - 3]
 
             # Layout1 progresses 2 blocks per tick on the X axis
             pos[0] += 2
 
-            # Merge the brick into this track
+            # Merge the bricks into this track
             self.add_data(brick)
+            self.add_data(minecart)
             last_tick = tick

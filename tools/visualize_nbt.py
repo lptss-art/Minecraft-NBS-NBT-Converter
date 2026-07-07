@@ -103,6 +103,16 @@ def generate_cube_sprite(color_top, color_left, color_right, outline, name="ston
         draw.rectangle([w*0.3, z-h*0.5, w*0.35, z-h*0.2], fill=(200,0,0,255))
         draw.rectangle([w*0.6, z-h*0.2, w*0.65, z+h*0.1], fill=(200,0,0,255))
 
+    if "rail" in name:
+        # Draw two steel bars across
+        draw.line([(w*0.3, z + h*0.2), (w*0.8, h/2 + z + h*0.3)], fill=(150, 150, 150, 255), width=2)
+        draw.line([(w*0.2, z + h*0.6), (w*0.7, h/2 + z + h*0.7)], fill=(150, 150, 150, 255), width=2)
+        # Draw wooden cross-ties
+        for i in range(1, 4):
+            dx = w * 0.2 * i
+            dy = h * 0.2 * i
+            draw.line([(w*0.3 + dx, z + dy), (w*0.1 + dx, z + dy + h*0.4)], fill=(100, 60, 20, 255), width=2)
+
     return img
 
 def get_sprite_for_block(name):
@@ -133,6 +143,11 @@ def get_sprite_for_block(name):
     elif "repeater" in name:
         c_top, c_left, c_right = (200, 200, 200, 255), (160, 160, 160, 255), (140, 140, 140, 255)
         hr = 0.2
+    elif "rail" in name:
+        c_top, c_left, c_right = (0, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0)
+        outline = (0, 0, 0, 0)
+        flat = True
+        alpha = 255
 
     return generate_cube_sprite(c_top, c_left, c_right, outline, name=name, is_flat=flat, alpha=alpha, height_ratio=hr)
 

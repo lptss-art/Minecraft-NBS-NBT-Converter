@@ -19,6 +19,8 @@ class LayoutBase(Brick):
             self.index_redstone_block = self.custom_nbt.get_index_safe("minecraft:redstone_block")
             self.index_repeater = self.custom_nbt.index_repeaters["west"]
             self.index_air = self.custom_nbt.get_index_safe("minecraft:air")
+            self.index_rail = self.custom_nbt.get_index_safe("minecraft:powered_rail", {"shape": "east_west"})
+            self.index_detector = self.custom_nbt.get_index_safe("minecraft:detector_rail", {"shape": "east_west"})
 
             self.offset_notes = self.custom_nbt.index_notes
             self.offset_instr = self.custom_nbt.index_instr
@@ -31,6 +33,8 @@ class LayoutBase(Brick):
             self.index_redstone_block = -1
             self.index_repeater = -1
             self.index_air = -1
+            self.index_rail = -1
+            self.index_detector = -1
             self.offset_notes = -1
             self.offset_instr = -1
             self.index_floor = -1
