@@ -184,16 +184,23 @@ def render_data_to_image(data_blocks, nbt_palette=None, title="NBT Structure", o
 
     for block in sorted_blocks:
         x, y, z = block['pos']
-        idx = block['index']
-        name = get_block_name_from_index(nbt_palette, idx) if nbt_palette else "unknown"
+
+        # Determine the name. Try to use block_name directly if it exists (new format).
+        # Fallback to index logic if it's the old format.
+        if 'block_name' in block:
+            name = block['block_name']
+        elif 'index' in block:
+            idx = block['index']
+            name = get_block_name_from_index(nbt_palette, idx) if nbt_palette else "unknown"
+        else:
+            name = "unknown"
 
         if "air" in name:
             continue
 
-        if idx >= 0 and nbt_palette:
-            if "stone" in name or "planks" in name or "glass" in name or "wool" in name or "clay" in name or "sand" in name or "block" in name or "ice" in name or "pumpkin" in name or "glowstone" in name:
-                 if not ("redstone" in name or "piston" in name or "note" in name):
-                    name = "instrument"
+        if "stone" in name or "planks" in name or "glass" in name or "wool" in name or "clay" in name or "sand" in name or "block" in name or "ice" in name or "pumpkin" in name or "glowstone" in name:
+             if not ("redstone" in name or "piston" in name or "note" in name):
+                name = "instrument"
 
         if name not in sprites:
             sprites[name] = get_sprite_for_block(name)
@@ -228,8 +235,15 @@ def export_topdown_grid(data_blocks, nbt_palette=None, title="NBT Grid", csv_pat
     grid = defaultdict(list)
     for block in data_blocks:
         x, y, z = block['pos']
-        idx = block['index']
-        name = get_block_name_from_index(nbt_palette, idx) if nbt_palette else "unknown"
+
+        if 'block_name' in block:
+            name = block['block_name']
+        elif 'index' in block:
+            idx = block['index']
+            name = get_block_name_from_index(nbt_palette, idx) if nbt_palette else "unknown"
+        else:
+            name = "unknown"
+
         if "air" in name:
             continue
 

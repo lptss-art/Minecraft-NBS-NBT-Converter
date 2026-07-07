@@ -9,9 +9,8 @@ class StructureGenerator:
     Generates NBT files from processed MusicData.
     Supports different layouts and output modes (Monolithic vs. Mini-NBT parts).
     """
-    def __init__(self, processed_data, nbt_template, layout_type="Layout2", palettes=None):
+    def __init__(self, processed_data, layout_type="Layout2", palettes=None):
         self.df_notes = processed_data
-        self.nbt_template = nbt_template
         self.layout_type = layout_type
         self.global_data = Brick()
         self.palettes = palettes or {}
@@ -19,9 +18,9 @@ class StructureGenerator:
     def generate_blocks(self):
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
         if "Layout1" in self.layout_type:
-            track = Layout1Track(nbt_template=self.nbt_template)
+            track = Layout1Track()
         else:
-            track = Layout2Track(nbt_template=self.nbt_template)
+            track = Layout2Track()
 
         track.build_sequence(self.df_notes)
         self.global_data = track
@@ -29,11 +28,11 @@ class StructureGenerator:
         # Before decoration, we must resolve all 'needs_down' constraints
         # using a default floor block, e.g. stone or wood if specified
         if self.palettes and self.palettes.get('floor'):
-            floor_index = self.nbt_template.get_index(f"minecraft:{self.palettes['floor'][0]}")
+            floor_block_name = f"minecraft:{self.palettes['floor'][0]}"
         else:
-            floor_index = self.nbt_template.get_index_safe("minecraft:stone")
+            floor_block_name = "minecraft:stone"
 
-        self.global_data.clean(floor_index)
+        self.global_data.clean(floor_block_name)
 
         self.apply_decoration()
 
@@ -57,34 +56,29 @@ class StructureGenerator:
 
         data_deco = Brick()
 
-        floor_blocks = self.palettes.get('floor', [])
-        ceiling_blocks = self.palettes.get('ceiling', [])
-        flowers = self.palettes.get('flowers', [])
+        floor_blocks = [f"minecraft:{b}" for b in self.palettes.get('floor', [])]
+        ceiling_blocks = [f"minecraft:{b}" for b in self.palettes.get('ceiling', [])]
+        flowers = [f"minecraft:{b}" for b in self.palettes.get('flowers', [])]
 
-        # Pre-calculate NBT indices
-        floor_indices = [self.nbt_template.get_index(f"minecraft:{b}") for b in floor_blocks] if floor_blocks else []
-        ceiling_indices = [self.nbt_template.get_index(f"minecraft:{b}") for b in ceiling_blocks] if ceiling_blocks else []
-        flower_indices = [self.nbt_template.get_index(f"minecraft:{b}") for b in flowers] if flowers else []
-
-        def rand_index(indices, prob_nothing=0.0):
-            if not indices or random.random() < prob_nothing:
-                return self.nbt_template.get_index("minecraft:air")
-            return random.choice(indices)
+        def rand_block(blocks, prob_nothing=0.0):
+            if not blocks or random.random() < prob_nothing:
+                return "minecraft:air"
+            return random.choice(blocks)
 
         for i in range(min_x, max_x + 1):
             for k in range(min_z, max_z + 1):
                 # Floor
-                if floor_indices:
-                    data_deco.add_block(i, -2, k, rand_index(floor_indices), random_delay_range=5)
-                    data_deco.add_block(i, -1, k, rand_index(floor_indices), random_delay_range=5)
+                if floor_blocks:
+                    data_deco.add_block(i, -2, k, rand_block(floor_blocks), random_delay_range=5)
+                    data_deco.add_block(i, -1, k, rand_block(floor_blocks), random_delay_range=5)
 
                 # Flowers (sparse)
-                if flower_indices and random.random() > 0.8:
-                    data_deco.add_block(i, 0, k, rand_index(flower_indices), needs_down=True)
+                if flowers and random.random() > 0.8:
+                    data_deco.add_block(i, 0, k, rand_block(flowers), needs_down=True)
 
                 # Ceiling / Lanterns (sparse grid)
-                if ceiling_indices and (i % 4 == 0 and k % 4 == 0):
-                    data_deco.add_block(i, 4, k, rand_index(ceiling_indices))
+                if ceiling_blocks and (i % 4 == 0 and k % 4 == 0):
+                    data_deco.add_block(i, 4, k, rand_block(ceiling_blocks))
 
         # Merge the generated track into the decoration
         data_deco.add_data(self.global_data)
@@ -126,8 +120,9 @@ class StructureGenerator:
                 x - offsets[layer],
                 y - offset_y,
                 z - offset_z,
-                block['index'],
-                0
+                block['block_name'],
+                properties=block.get('properties', {}),
+                tick=0
             )
 
         # Export individual layer parts

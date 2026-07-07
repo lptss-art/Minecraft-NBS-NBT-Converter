@@ -1,5 +1,4 @@
 import numpy as np
-from core.customNBT import CustomNBT
 from core.layout_base import LayoutBase
 from core.brick import Brick
 
@@ -8,8 +7,8 @@ class Layout2Brick(LayoutBase):
     Manages the layout of note blocks and redstone structures for a single tick.
     Inherits from LayoutBase.
     """
-    def __init__(self, x=0, y=0, z=0, nbt=None, facing='south', direction=-1):
-        super().__init__(x=x, y=y, z=z, nbt=nbt, facing=facing, direction=direction)
+    def __init__(self, x=0, y=0, z=0, facing='south', direction=-1):
+        super().__init__(x=x, y=y, z=z, facing=facing, direction=direction)
         
     def build(self, notes_integer=None, notes_half=None):
         """
@@ -28,7 +27,7 @@ class Layout2Brick(LayoutBase):
             half_note_count = len(notes_half)
   
         # For the complex extensions, we create a sub-brick
-        sub_brick = Brick(nbt=self.custom_nbt)
+        sub_brick = Brick()
 
         # Piston side logic (half ticks) - rotated parts
         if notes_half is not None:
@@ -40,8 +39,8 @@ class Layout2Brick(LayoutBase):
                 self.add_note_to_brick(sub_brick, 0, 0, 1, notes_half[2])
             if half_note_count >= 4:
                 sub_brick.translate(1, 0, 0)
-                sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
-                sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
+                sub_brick.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                # sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)  # Let clean() handle this natively now based on needs_down
                 self.add_note_to_brick(sub_brick, 1, 0, 0, notes_half[3])
             if half_note_count >= 5:
                 self.add_note_to_brick(sub_brick, 0, -1, 1, notes_half[4])
@@ -49,8 +48,7 @@ class Layout2Brick(LayoutBase):
                 self.add_note_to_brick(sub_brick, 0, -1, -1, notes_half[5])
             if half_note_count >= 7:
                 sub_brick.translate(1, 0, 0)
-                sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
-                sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
+                sub_brick.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
                 self.add_note_to_brick(sub_brick, 0, -1, 1, notes_half[6])
             if half_note_count >= 8:
                 self.add_note_to_brick(sub_brick, 0, -1, -1, notes_half[7]) # Up to 8 half notes supported
@@ -59,8 +57,8 @@ class Layout2Brick(LayoutBase):
                 sub_brick.translate(1, 0, 0)
 
             sub_brick.translate(2, 0, 0)
-            sub_brick.add_block(0, 0, 0, self.index_piston, self.tick)
-            sub_brick.add_block(1, 0, 0, self.index_redstone_block, self.tick)
+            sub_brick.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
+            sub_brick.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
             
             sub_brick.translate(1, 0, 0)
             
@@ -68,8 +66,7 @@ class Layout2Brick(LayoutBase):
         # Triggered if > 5 notes (no piston) or > 4 notes (with piston)
         if integer_note_count > 5 or (integer_note_count > 4 and half_note_count != 0):
 
-            sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
-            sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
+            sub_brick.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
             if integer_note_count >= 4:
                 self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[3])
@@ -79,16 +76,14 @@ class Layout2Brick(LayoutBase):
 
             if integer_note_count >= 6:
                 sub_brick.translate(1, 0, 0)
-                sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
-                sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
+                sub_brick.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
                 self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[5])
             if integer_note_count >= 7:
                 self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[6])
              
             if integer_note_count >= 8:
                 sub_brick.translate(1, 0, 0)
-                sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
-                sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
+                sub_brick.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
                 self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[7])
             if integer_note_count >= 9:
                 self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[8])
@@ -102,7 +97,7 @@ class Layout2Brick(LayoutBase):
 
         # Central block
         if integer_note_count == 0:
-            self.add_block(1, 0, 0, self.index_wood)
+            self.add_block(1, 0, 0, "minecraft:oak_planks")
         if integer_note_count >= 1:
             self.add_note(1, 0, 0, notes_integer[0])
             
@@ -135,9 +130,8 @@ class Layout2Track(Brick):
     """
     Manages a sequence of Layout2Bricks, assembling them into a continuous serpentine layout.
     """
-    def __init__(self, nbt_template=None):
+    def __init__(self):
         super().__init__()
-        self.nbt_template = nbt_template
 
     def build_sequence(self, df_notes):
         """Processes notes and maps them to a serpentine sequence of bricks."""
@@ -148,7 +142,7 @@ class Layout2Track(Brick):
         for tick in df_notes.index:
             tick_diff = int(tick - last_tick)
 
-            brick = Layout2Brick(nbt=self.nbt_template)
+            brick = Layout2Brick()
             brick.tick = int(last_tick)
 
             # Get notes for this tick
@@ -165,20 +159,17 @@ class Layout2Track(Brick):
                 pass
             elif direction % 4 == 1:
                 brick.flip()
-                brick.rotate(3, self.nbt_template) # -1 is 3 in mod 4
+                brick.rotate(3) # -1 is 3 in mod 4
             elif direction % 4 == 2:
                 brick.flip()
             else:
-                brick.rotate(1, self.nbt_template)
+                brick.rotate(1)
 
             # Re-add repeater logic in Track
-            index_repeater = self.nbt_template.index_repeaters["west"]
-            index_redstone = self.nbt_template.get_index_safe("minecraft:redstone_wire")
-
             actual_delay = max(1, min(4, tick_diff))
-            brick.add_block(0, 0, 0, index_repeater + actual_delay - 1, brick.tick, needs_down=True)
+            brick.add_block(0, 0, 0, "minecraft:repeater", {"facing": "west", "delay": actual_delay}, tick=brick.tick, needs_down=True)
 
-            brick.add_block(1, 0, -1, index_redstone, brick.tick, needs_down=True)
+            brick.add_block(1, 0, -1, "minecraft:redstone_wire", tick=brick.tick, needs_down=True)
 
             # Since we flip/rotate, we must apply those to the connecting bits too if they were part of the brick,
             # BUT the repeater needs specific orientations.

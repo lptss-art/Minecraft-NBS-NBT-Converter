@@ -42,6 +42,7 @@ class Brick:
         """Merges another Brick object into this one, applying data_b's position offset."""
         for block in data_b.blocks:
             new_block = block.copy()
+            new_block['properties'] = block.get('properties', {}).copy()
             new_block['pos'] = [
                 block['pos'][0] + data_b.position[0],
                 block['pos'][1] + data_b.position[1],
@@ -49,12 +50,15 @@ class Brick:
             ]
             self.blocks.append(new_block)
 
-    def add_block(self, x, y, z, index, tick=0, random_delay_range=-1, needs_down=False, needs_up=False):
+    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False):
         """Adds a block at the specified coordinates."""
+        if properties is None:
+            properties = {}
         actual_random_delay = random_delay_range if random_delay_range != -1 else 255
         self.blocks.append({
             'pos': [x, y, z],
-            'index': index,
+            'block_name': block_name,
+            'properties': properties,
             'metadata': {
                 'tick': tick,
                 'random_delay_range': actual_random_delay,
@@ -64,7 +68,7 @@ class Brick:
             }
         })
 
-    def clean(self, index_floor=-1):
+    def clean(self, floor_block_name=None, floor_properties=None):
         """Removes duplicate blocks at the same coordinate, keeping the most recent one.
            If a block has 'needs_down' and there is nothing below it, it inserts a floor block.
         """
@@ -76,8 +80,11 @@ class Brick:
 
         self.blocks = list(seen.values())
 
-        if index_floor == -1:
+        if floor_block_name is None:
             return
+
+        if floor_properties is None:
+            floor_properties = {}
 
         # Second pass: inject floor blocks for elements requiring support
         coord_map = {tuple(b['pos']): b for b in self.blocks}
@@ -88,7 +95,8 @@ class Brick:
                 if below_coord not in coord_map:
                     to_add.append({
                         'pos': list(below_coord),
-                        'index': index_floor,
+                        'block_name': floor_block_name,
+                        'properties': floor_properties,
                         'metadata': {
                             'tick': block['metadata']['tick'],
                             'random_delay_range': block['metadata']['random_delay_range'],
@@ -101,11 +109,14 @@ class Brick:
 
         self.blocks.extend(to_add)
 
-    def rotate(self, rotations, nbt=None):
+    def rotate(self, rotations):
         """Rotates the grid blocks by 90 degree steps."""
         rotations = rotations % 4
         if rotations == 0:
             return
+
+        directions = {'north': 0, 'east': 1, 'south': 2, 'west': 3}
+        directions_i = {0: 'north', 1: 'east', 2: 'south', 3: 'west'}
 
         for block in self.blocks:
             x, y, z = block['pos']
@@ -116,28 +127,73 @@ class Brick:
             elif rotations == 3:
                 block['pos'] = [z, y, -x]
 
-        if nbt is None:
-            return
+            if 'properties' in block:
+                props = block['properties']
+                has_changed = False
+                new_props = props.copy()
 
-        correspondence = nbt.get_rotation_index(rotations)
+                if 'facing' in props:
+                    direction = props['facing']
+                    if direction in directions:
+                        new_props['facing'] = directions_i[(directions[direction] + rotations) % 4]
+                        has_changed = True
 
-        for block in self.blocks:
-            if block['index'] in correspondence:
-                block['index'] = correspondence[block['index']]
+                elif any(d in props for d in directions.keys()):
+                    for d in directions.keys():
+                        if d in props:
+                            new_d = directions_i[(directions[d] + rotations) % 4]
+                            new_props[new_d] = props[d]
+                            if new_d != d and d not in new_props: # clean up old direction if it wasn't overwritten
+                                # We need to properly clear old direction if it's not being used, but typical behavior
+                                # is to just remap. Better to build a fresh dict for directional keys.
+                                pass
+                            has_changed = True
 
-    def flip(self, nbt=None):
+                    if has_changed:
+                        # Rebuild directional keys completely
+                        rebuilt = {}
+                        for k, v in props.items():
+                            if k not in directions:
+                                rebuilt[k] = v
+                        for d in directions.keys():
+                            if d in props:
+                                new_d = directions_i[(directions[d] + rotations) % 4]
+                                rebuilt[new_d] = props[d]
+                        new_props = rebuilt
+
+                if has_changed:
+                    block['properties'] = new_props
+
+    def flip(self):
         """Flips the grid along the Z axis."""
         for block in self.blocks:
             block['pos'][2] = -block['pos'][2]
 
-        if nbt is None:
-            return
+            if 'properties' in block:
+                props = block['properties']
+                has_changed = False
+                new_props = props.copy()
 
-        correspondence = nbt.get_rotation_index(2, True)
+                if 'facing' in props:
+                    direction = props['facing']
+                    if direction == 'east':
+                        new_props['facing'] = 'west'
+                        has_changed = True
+                    elif direction == 'west':
+                        new_props['facing'] = 'east'
+                        has_changed = True
+                elif 'east' in props or 'west' in props:
+                    new_props['east'] = props.get('west', 'none')
+                    new_props['west'] = props.get('east', 'none')
 
-        for block in self.blocks:
-            if block['index'] in correspondence:
-                block['index'] = correspondence[block['index']]
+                    if new_props['east'] == 'none':
+                        del new_props['east']
+                    if new_props['west'] == 'none':
+                        del new_props['west']
+                    has_changed = True
+
+                if has_changed:
+                    block['properties'] = new_props
 
     def write_nbt(self, nbt):
         """Writes the blocks to the NBT object."""
@@ -147,7 +203,8 @@ class Brick:
                 block['pos'][1] + self.position[1],
                 block['pos'][2] + self.position[2]
             ]
-            nbt.add_block(pos, block['index'], metadata=block['metadata'])
+            index = nbt.get_index_safe(block['block_name'], block['properties'])
+            nbt.add_block(pos, index, metadata=block['metadata'])
 
     def set_layers(self, default_random_amount=5):
         """Calculates the layer for each block based on tick and randomness."""

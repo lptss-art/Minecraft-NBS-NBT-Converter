@@ -168,8 +168,7 @@ with tab2:
                     progress_bar.progress(50)
 
                     status_text.text("Generating Structure Blocks...")
-                    nbt_template = CustomNBT()
-                    generator = StructureGenerator(df_prep, nbt_template, layout_type=layout_type, palettes=palettes)
+                    generator = StructureGenerator(df_prep, layout_type=layout_type, palettes=palettes)
                     generator.generate_blocks()
                     progress_bar.progress(80)
 
@@ -181,6 +180,7 @@ with tab2:
 
                     if export_mode == "Single Monolithic File":
                         out_path = f"output/{out_name}_complete.nbt"
+                        # Generator handles CustomNBT logic in export_monolithic now
                         generator.export_monolithic(out_path)
                         st.session_state.generated_nbt_path = out_path
                         st.session_state.generated_nbt_name = f"{out_name}_complete.nbt"
@@ -253,10 +253,10 @@ with tab3:
 
         # Test 1: Dense Layout1
         nbt1 = CustomNBT()
-        l1 = Layout1Brick(nbt=nbt1)
+        l1 = Layout1Brick()
         l1.build(notes_integer=make_notes(10), notes_half=make_notes(10))
-        l1.clean(nbt1.get_index_safe("minecraft:stone"))
-        l1.write_nbt()
+        l1.clean("minecraft:stone")
+        l1.write_nbt(nbt1)
         nbt1.write_file("output/debug/debug_layout1_dense.nbt")
         if CAN_VISUALIZE:
             render_data_to_image(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense", "output/debug_images/debug_layout1_dense.png")
@@ -266,10 +266,10 @@ with tab3:
 
         # Test 2: Dense Layout2 (Base)
         nbt2 = CustomNBT()
-        l2 = Layout2Brick(nbt=nbt2)
+        l2 = Layout2Brick()
         l2.build(notes_integer=make_notes(10), notes_half=make_notes(10))
-        l2.clean(nbt2.get_index_safe("minecraft:stone"))
-        l2.write_nbt()
+        l2.clean("minecraft:stone")
+        l2.write_nbt(nbt2)
         nbt2.write_file("output/debug/debug_layout2_dense.nbt")
         if CAN_VISUALIZE:
             render_data_to_image(l2.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense", "output/debug_images/debug_layout2_dense.png")
@@ -281,11 +281,11 @@ with tab3:
         # Symmetry is now an after-effect, so we just build and then rotate/flip manually
         # to simulate the "Symmetric" version
         nbt3 = CustomNBT()
-        l3 = Layout2Brick(nbt=nbt3)
+        l3 = Layout2Brick()
         l3.build(notes_integer=make_notes(10), notes_half=make_notes(10))
         l3.flip()
-        l3.clean(nbt3.get_index_safe("minecraft:stone"))
-        l3.write_nbt()
+        l3.clean("minecraft:stone")
+        l3.write_nbt(nbt3)
         nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
         if CAN_VISUALIZE:
             render_data_to_image(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense (Symmetric)", "output/debug_images/debug_layout2_dense_sym.png")
@@ -295,11 +295,11 @@ with tab3:
 
         # Test 4: Layout2 Flipped
         nbt4 = CustomNBT()
-        l4 = Layout2Brick(nbt=nbt4)
+        l4 = Layout2Brick()
         l4.build(notes_integer=make_notes(10), notes_half=make_notes(10))
         l4.flip()
-        l4.clean(nbt4.get_index_safe("minecraft:stone"))
-        l4.write_nbt()
+        l4.clean("minecraft:stone")
+        l4.write_nbt(nbt4)
         nbt4.write_file("output/debug/debug_layout2_flipped.nbt")
         if CAN_VISUALIZE:
             render_data_to_image(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped", "output/debug_images/debug_layout2_flipped.png")
@@ -310,11 +310,11 @@ with tab3:
         # Test 5-8: Layout2 Rotations
         for rot in range(1, 4):
             nbt_rot = CustomNBT()
-            l_rot = Layout2Brick(nbt=nbt_rot)
+            l_rot = Layout2Brick()
             l_rot.build(notes_integer=make_notes(10), notes_half=make_notes(10))
-            l_rot.rotate(rot, nbt_rot)
-            l_rot.clean(nbt_rot.get_index_safe("minecraft:stone"))
-            l_rot.write_nbt()
+            l_rot.rotate(rot)
+            l_rot.clean("minecraft:stone")
+            l_rot.write_nbt(nbt_rot)
             nbt_rot.write_file(f"output/debug/debug_layout2_rot{rot}.nbt")
             if CAN_VISUALIZE:
                 render_data_to_image(l_rot.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rotation {rot}", f"output/debug_images/debug_layout2_rot{rot}.png")
@@ -332,11 +332,11 @@ with tab3:
         df_seq = pd.DataFrame(data_seq).set_index('tick')
 
         nbt_seq = CustomNBT()
-        gen_seq = StructureGenerator(df_seq, nbt_seq, layout_type="Layout2")
+        gen_seq = StructureGenerator(df_seq, layout_type="Layout2")
         gen_seq.generate_blocks()
 
         # We manually clean here with a stone block fallback to ensure tests are stable
-        gen_seq.global_data.clean(nbt_seq.get_index_safe("minecraft:stone"))
+        gen_seq.global_data.clean("minecraft:stone")
 
         gen_seq.global_data.write_nbt(nbt_seq)
         nbt_seq.write_file("output/debug/debug_assembly_serpentine.nbt")
