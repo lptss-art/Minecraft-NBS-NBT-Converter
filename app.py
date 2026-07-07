@@ -254,7 +254,7 @@ with tab3:
         # Test 1: Dense Layout1
         nbt1 = CustomNBT()
         l1 = Layout1Brick(nbt=nbt1)
-        l1.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l1.build(notes_integer=make_notes(10), notes_half=make_notes(10))
         l1.clean(nbt1.get_index_safe("minecraft:stone"))
         l1.write_nbt()
         nbt1.write_file("output/debug/debug_layout1_dense.nbt")
@@ -267,7 +267,7 @@ with tab3:
         # Test 2: Dense Layout2 (Base)
         nbt2 = CustomNBT()
         l2 = Layout2Brick(nbt=nbt2)
-        l2.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l2.build(notes_integer=make_notes(10), notes_half=make_notes(10))
         l2.clean(nbt2.get_index_safe("minecraft:stone"))
         l2.write_nbt()
         nbt2.write_file("output/debug/debug_layout2_dense.nbt")
@@ -278,9 +278,12 @@ with tab3:
         test_index += 1
 
         # Test 3: Dense Layout2 (Symmetric)
+        # Symmetry is now an after-effect, so we just build and then rotate/flip manually
+        # to simulate the "Symmetric" version
         nbt3 = CustomNBT()
         l3 = Layout2Brick(nbt=nbt3)
-        l3.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10), is_symmetric=True)
+        l3.build(notes_integer=make_notes(10), notes_half=make_notes(10))
+        l3.flip()
         l3.clean(nbt3.get_index_safe("minecraft:stone"))
         l3.write_nbt()
         nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
@@ -293,7 +296,7 @@ with tab3:
         # Test 4: Layout2 Flipped
         nbt4 = CustomNBT()
         l4 = Layout2Brick(nbt=nbt4)
-        l4.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+        l4.build(notes_integer=make_notes(10), notes_half=make_notes(10))
         l4.flip()
         l4.clean(nbt4.get_index_safe("minecraft:stone"))
         l4.write_nbt()
@@ -308,7 +311,7 @@ with tab3:
         for rot in range(1, 4):
             nbt_rot = CustomNBT()
             l_rot = Layout2Brick(nbt=nbt_rot)
-            l_rot.build(tick_delay=2, notes_integer=make_notes(10), notes_half=make_notes(10))
+            l_rot.build(notes_integer=make_notes(10), notes_half=make_notes(10))
             l_rot.rotate(rot, nbt_rot)
             l_rot.clean(nbt_rot.get_index_safe("minecraft:stone"))
             l_rot.write_nbt()
