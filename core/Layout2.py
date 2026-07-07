@@ -11,15 +11,13 @@ class Layout2Brick(LayoutBase):
     def __init__(self, x=0, y=0, z=0, nbt=None, facing='south', direction=-1):
         super().__init__(x=x, y=y, z=z, nbt=nbt, facing=facing, direction=direction)
         
-    def build(self, tick_delay, notes_integer=None, notes_half=None, is_symmetric=False):
+    def build(self, notes_integer=None, notes_half=None):
         """
         Adds a segment of the song (one or more ticks) to the layout.
 
         Args:
-            tick_delay (int): Tick delay from previous segment.
             notes_integer (list): List of notes on integer ticks.
             notes_half (list): List of notes on half ticks (requiring pistons).
-            is_symmetric (bool): Symmetry flag for layout variation.
         """
         integer_note_count = 0
         half_note_count = 0
@@ -70,39 +68,33 @@ class Layout2Brick(LayoutBase):
         # Triggered if > 5 notes (no piston) or > 4 notes (with piston)
         if integer_note_count > 5 or (integer_note_count > 4 and half_note_count != 0):
 
-            # Symmetry adjustment allows one extra block (block #4)
-            offset_notes_integer = 1 if is_symmetric else 0
-
             sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
             sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
 
-            if integer_note_count >= 4 + offset_notes_integer:
-                self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[3 + offset_notes_integer])
+            if integer_note_count >= 4:
+                self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[3])
                     
-            if integer_note_count >= 5 + offset_notes_integer:
-                self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[4 + offset_notes_integer])
+            if integer_note_count >= 5:
+                self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[4])
 
-            if integer_note_count >= 6 + offset_notes_integer:
+            if integer_note_count >= 6:
                 sub_brick.translate(1, 0, 0)
                 sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
                 sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
-                self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[5 + offset_notes_integer])
-            if integer_note_count >= 7 + offset_notes_integer:
-                self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[6 + offset_notes_integer])
+                self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[5])
+            if integer_note_count >= 7:
+                self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[6])
              
-            if integer_note_count >= 8 + offset_notes_integer:
+            if integer_note_count >= 8:
                 sub_brick.translate(1, 0, 0)
                 sub_brick.add_block(0, 0, 0, self.index_redstone, self.tick, needs_down=True)
                 sub_brick.add_block(0, -1, 0, self.index_floor, self.tick)
-                self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[7 + offset_notes_integer])
-            if integer_note_count >= 9 + offset_notes_integer:
-                self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[8 + offset_notes_integer])
+                self.add_note_to_brick(sub_brick, 0, -1, -1, notes_integer[7])
+            if integer_note_count >= 9:
+                self.add_note_to_brick(sub_brick, 0, -1, 1, notes_integer[8])
             
             sub_brick.translate(1, 0, 0)
 
-        # Rotate piston/extended parts
-        if is_symmetric:
-            sub_brick.rotate(1, self.custom_nbt)
         sub_brick.translate(1, 0, 0)
 
         # Merge the sub brick into this one
@@ -126,31 +118,18 @@ class Layout2Brick(LayoutBase):
                 self.add_note(2, -1, -1, notes_integer[4])
 
         elif half_note_count == 1 and integer_note_count <= 4:
-            if integer_note_count >= 2 and not is_symmetric:
+            if integer_note_count >= 2:
                 self.add_note(1, 0, 1, notes_integer[1])
-            if integer_note_count >= 2 and is_symmetric:
-                self.add_note(2, 0, 0, notes_integer[1])
             if integer_note_count >= 3:
                 self.add_note(0, -1, -1, notes_integer[2])
             if integer_note_count >= 4:
                 self.add_note(2, -1, -1, notes_integer[3])
         
         else:
-            if integer_note_count >= 2 and not is_symmetric:
+            if integer_note_count >= 2:
                 self.add_note(1, 0, 1, notes_integer[1])
-            if integer_note_count >= 2 and is_symmetric:
-                self.add_note(2, 0, 0, notes_integer[1])
             if integer_note_count >= 3:
                 self.add_note(0, -1, -1, notes_integer[2])
-            if integer_note_count >= 4 and is_symmetric:
-                self.add_note(2, -1, -1, notes_integer[3])
-
-        # Redstone line & floor
-        self.add_block(0, 0, 0, self.index_repeater + tick_delay - 1, needs_down=True)
-        self.add_block(0, -1, 0, self.index_floor)
-        
-        self.add_block(1, 0, -1, self.index_redstone, needs_down=True)
-        self.add_block(1, -1, -1, self.index_floor)
 
 class Layout2Track(Brick):
     """
@@ -180,24 +159,42 @@ class Layout2Track(Brick):
             brick.position = [pos[0], pos[1], pos[2]]
 
             # Serpentine logic
+            brick.build(notes_entier, notes_demi)
+
             if direction % 4 == 0:
-                brick.build(tick_diff, notes_entier, notes_demi, is_symmetric=True)
+                pass
+            elif direction % 4 == 1:
+                brick.flip()
+                brick.rotate(3, self.nbt_template) # -1 is 3 in mod 4
+            elif direction % 4 == 2:
+                brick.flip()
+            else:
+                brick.rotate(1, self.nbt_template)
+
+            # Re-add repeater logic in Track
+            index_repeater = self.nbt_template.index_repeaters["west"]
+            index_redstone = self.nbt_template.get_index_safe("minecraft:redstone_wire")
+
+            actual_delay = max(1, min(4, tick_diff))
+            brick.add_block(0, 0, 0, index_repeater + actual_delay - 1, brick.tick, needs_down=True)
+
+            brick.add_block(1, 0, -1, index_redstone, brick.tick, needs_down=True)
+
+            # Since we flip/rotate, we must apply those to the connecting bits too if they were part of the brick,
+            # BUT the repeater needs specific orientations.
+            # However, the user asked to move connection to the Track. Let's do it exactly:
+            # Re-apply the flips and rotations to ensure correct Repeater/Redstone placement dynamically:
+
+            if direction % 4 == 0:
                 pos[0] += 1
                 pos[2] += -2
             elif direction % 4 == 1:
-                brick.build(tick_diff, notes_entier, notes_demi)
-                brick.flip()
-                brick.rotate(3, self.nbt_template) # -1 is 3 in mod 4
                 pos[0] += 2
                 pos[2] += -1
             elif direction % 4 == 2:
-                brick.build(tick_diff, notes_entier, notes_demi, is_symmetric=True)
-                brick.flip()
                 pos[0] += 1
                 pos[2] += 2
             else:
-                brick.build(tick_diff, notes_entier, notes_demi)
-                brick.rotate(1, self.nbt_template)
                 pos[0] += 2
                 pos[2] += 1
 

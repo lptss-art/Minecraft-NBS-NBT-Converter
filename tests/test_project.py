@@ -86,7 +86,7 @@ class TestLayout1(unittest.TestCase):
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
 
-        layout.build(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+        layout.build(notes_integer=notes_int, notes_half=notes_half)
 
         # Check if data was populated
         self.assertTrue(len(layout.blocks) > 0)
@@ -192,7 +192,7 @@ class TestLayout2(unittest.TestCase):
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
 
-        layout.build(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+        layout.build(notes_integer=notes_int, notes_half=notes_half)
 
         # Check if data was populated
         self.assertTrue(len(layout.blocks) > 0)

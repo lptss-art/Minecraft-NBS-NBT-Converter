@@ -30,13 +30,11 @@ class Layout1Brick(LayoutBase):
     def __init__(self, nbt=None, start_x=0, start_y=0, start_z=0):
         super().__init__(x=start_x, y=start_y, z=start_z, nbt=nbt)
 
-    def build(self, tick_delay, notes_integer=None, notes_half=None, is_symmetric=False):
+    def build(self, notes_integer=None, notes_half=None):
         """
         Builds a single tick's worth of blocks for the straight layout.
-        Uses a straight redstone line: Repeater -> Block -> Repeater.
-        Notes branch off sideways.
+        Notes branch off sideways from the central block.
         """
-        sym = is_symmetric
         if notes_integer is None:
             notes_integer = []
         if notes_half is None:
@@ -45,21 +43,8 @@ class Layout1Brick(LayoutBase):
         integer_note_count = len(notes_integer)
         half_note_count = len(notes_half)
 
-        # Base structure is 2 blocks long:
-        # [0, 0, 0] = Block that notes attach to
-        # [1, 0, 0] = Repeater (delay from previous tick)
-
-        # Add the redstone block (default is wood if no notes to attach, else instrument)
-        # Note: If there is an integer note, the central block will be the instrument block for that note.
-        # But we handle instruments inside add_note (it places at y-1).
-        # So at y=0, we place wood to propagate the signal.
+        # The central block (wood)
         self.add_block(0, 0, 0, self.index_wood)
-
-        # Add repeater at pos x=1
-        # Repeater points west (towards x=0).
-        # We clamp tick_delay between 1 and 4 for the repeater
-        actual_delay = max(1, min(4, tick_delay))
-        self.add_block(1, 0, 0, self.index_repeater + actual_delay - 1, needs_down=True)
 
         # Place notes branching off to the sides (z-axis)
         if integer_note_count > 0:
@@ -133,8 +118,16 @@ class Layout1Track(Brick):
             notes_entier = df_notes.loc[tick]['note entier']
             notes_demi = df_notes.loc[tick]['note demi']
 
-            # Build the brick
-            brick.build(tick_diff, notes_entier, notes_demi)
+            # Build the brick (just the notes)
+            brick.build(notes_entier, notes_demi)
+
+            # Add the connecting repeater to the track itself
+            actual_delay = max(1, min(4, tick_diff))
+            index_repeater = self.nbt_template.index_repeaters["west"]
+
+            # The track adds a repeater after the brick's main block.
+            # Position it directly on the track logic
+            self.add_block(pos[0] + 1, pos[1], pos[2], index_repeater + actual_delay - 1, tick, needs_down=True)
 
             # Build the parallel minecart track
             minecart = MinecartBrick(nbt=self.nbt_template)

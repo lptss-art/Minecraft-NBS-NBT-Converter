@@ -14,7 +14,7 @@ class LayoutBase(Brick):
         if nbt:
             self.index_stone = self.custom_nbt.get_index_safe("minecraft:stone")
             self.index_wood = self.custom_nbt.get_index_safe("minecraft:oak_planks")
-            self.index_redstone = self.custom_nbt.get_index("minecraft:redstone_wire", {'east': 'side', 'west': 'side'})
+            self.index_redstone = self.custom_nbt.get_index_safe("minecraft:redstone_wire")
             self.index_piston = self.custom_nbt.index_pistons["east"]
             self.index_redstone_block = self.custom_nbt.get_index_safe("minecraft:redstone_block")
             self.index_repeater = self.custom_nbt.index_repeaters["west"]
