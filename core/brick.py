@@ -164,33 +164,56 @@ class Brick:
                 if has_changed:
                     block['properties'] = new_props
 
-    def flip(self):
-        """Flips the grid along the Z axis."""
+    def flip(self, axis='z'):
+        """Flips the grid along the specified axis ('x', 'y', or 'z')."""
+        axis = axis.lower()
+        if axis not in ('x', 'y', 'z'):
+            raise ValueError("Axis must be 'x', 'y', or 'z'")
+
+        axis_index = {'x': 0, 'y': 1, 'z': 2}[axis]
+
         for block in self.blocks:
-            block['pos'][2] = -block['pos'][2]
+            block['pos'][axis_index] = -block['pos'][axis_index]
 
             if 'properties' in block:
                 props = block['properties']
                 has_changed = False
                 new_props = props.copy()
 
+                # Determine which directional pair to swap based on the axis
+                if axis == 'x':
+                    swap_pairs = [('east', 'west')]
+                elif axis == 'y':
+                    swap_pairs = [('up', 'down'), ('top', 'bottom')]
+                elif axis == 'z':
+                    swap_pairs = [('north', 'south')]
+
+                # In traditional Minecraft logic:
+                # X axis runs West to East (- to +)
+                # Y axis runs Down to Up (- to +)
+                # Z axis runs North to South (- to +)
+
                 if 'facing' in props:
                     direction = props['facing']
-                    if direction == 'east':
-                        new_props['facing'] = 'west'
-                        has_changed = True
-                    elif direction == 'west':
-                        new_props['facing'] = 'east'
-                        has_changed = True
-                elif 'east' in props or 'west' in props:
-                    new_props['east'] = props.get('west', 'none')
-                    new_props['west'] = props.get('east', 'none')
+                    for dir1, dir2 in swap_pairs:
+                        if direction == dir1:
+                            new_props['facing'] = dir2
+                            has_changed = True
+                        elif direction == dir2:
+                            new_props['facing'] = dir1
+                            has_changed = True
 
-                    if new_props['east'] == 'none':
-                        del new_props['east']
-                    if new_props['west'] == 'none':
-                        del new_props['west']
-                    has_changed = True
+                # Check for individual directional keys (like in redstone_wire)
+                for dir1, dir2 in swap_pairs:
+                    if dir1 in props or dir2 in props:
+                        new_props[dir1] = props.get(dir2, 'none')
+                        new_props[dir2] = props.get(dir1, 'none')
+
+                        if new_props[dir1] == 'none':
+                            del new_props[dir1]
+                        if new_props[dir2] == 'none':
+                            del new_props[dir2]
+                        has_changed = True
 
                 if has_changed:
                     block['properties'] = new_props

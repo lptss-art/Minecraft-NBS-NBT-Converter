@@ -15,10 +15,14 @@ class LayoutBase(Brick):
         if not hasattr(note, 'note'):
             return
 
-        instruments = list(CustomNBT.minecraft_instruments.values())
-        instr_name = instruments[note.instr] if note.instr < len(instruments) else "minecraft:dirt"
+        # Ensure indices and string formatting are correct for NBT properties
+        instr_index = int(note.instr)
+        note_val = str(int(note.note))
 
-        brick.add_block(x, y, z, "minecraft:note_block", {"note": note.note}, tick=self.tick)
+        instruments = list(CustomNBT.minecraft_instruments.values())
+        instr_name = instruments[instr_index] if instr_index < len(instruments) else "minecraft:dirt"
+
+        brick.add_block(x, y, z, "minecraft:note_block", {"note": note_val}, tick=self.tick)
         brick.add_block(x, y - 1, z, instr_name, {}, tick=self.tick, needs_down=True)
         brick.add_block(x, y + 1, z, "minecraft:air", {}, tick=self.tick)
 
