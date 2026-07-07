@@ -3,41 +3,55 @@ import os
 import shutil
 import pandas as pd
 import numpy as np
-from core.data import Data
+from core.brick import Brick
 from core.customNBT import CustomNBT
-from core.Layout2 import Layout2
+from core.Layout2 import Layout2Brick
+from core.Layout1 import Layout1Brick, Layout1Track
+from core.Layout2 import Layout2Track
 from core.MusicData import prep_data, Note
 import core.ReadNBS as ReadNBS
+import sys
+import os
 
-class TestDataClass(unittest.TestCase):
+# Add tools to path to allow importing the visualizer
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+try:
+    from tools.visualize_nbt import render_data_to_image, export_topdown_grid
+    CAN_VISUALIZE = True
+except ImportError:
+    CAN_VISUALIZE = False
+
+class TestBrickClass(unittest.TestCase):
     def test_initialization(self):
-        data = Data()
+        data = Brick()
         self.assertEqual(data.position, [0, 0, 0])
-        self.assertEqual(data.max_dimensions, [0, 0, 0])
-        self.assertEqual(data.data.shape, (4, 1, 4))
+        self.assertEqual(len(data.blocks), 0)
 
-    def test_add_block_and_reshape(self):
-        data = Data()
-        # Add block within bounds
+    def test_add_block_and_clean(self):
+        data = Brick()
+
+        # Add block
         data.add_block(0, 0, 0, 1)
-        self.assertTrue(data.data[0, 0, 0]['f0']) # Present
-        self.assertEqual(data.data[0, 0, 0]['f1'], 1) # Index
+        self.assertEqual(len(data.blocks), 1)
+        self.assertEqual(data.blocks[0]['index'], 1)
+        self.assertEqual(data.blocks[0]['pos'], [0, 0, 0])
 
-        # Add block out of bounds (triggers reshape)
-        data.add_block(10, 0, 0, 2)
-        # Check if shape expanded
-        self.assertTrue(data.shape[0] > 10)
-        # Check if block is present (need to find new index due to roll)
-        indices = np.where(data.data['f1'] == 2)
-        self.assertTrue(len(indices[0]) > 0)
+        # Add another block at same position
+        data.add_block(0, 0, 0, 2)
+        self.assertEqual(len(data.blocks), 2)
+
+        # Clean should keep the second one
+        data.clean()
+        self.assertEqual(len(data.blocks), 1)
+        self.assertEqual(data.blocks[0]['index'], 2)
 
     def test_set_layers(self):
-        data = Data()
+        data = Brick()
         data.add_block(0, 0, 0, 1, tick=10, random_delay_range=5)
         data.set_layers(default_random_amount=5)
         # Layer should be set based on tick and random
         # Layer = tick - rand(0, 5) => 10 - [0,5] => [5, 10]
-        layer = data.data[0, 0, 0]['f4']
+        layer = data.blocks[0]['metadata']['layer']
         self.assertTrue(5 <= layer <= 10)
 
 class TestCustomNBT(unittest.TestCase):
@@ -64,22 +78,146 @@ class TestCustomNBT(unittest.TestCase):
         self.assertEqual(block['state'].value, idx)
         self.assertEqual(block['pos'][1].value, 1)
 
-class TestLayout2(unittest.TestCase):
+class TestLayout1(unittest.TestCase):
     def test_add_notes(self):
         nbt = CustomNBT()
-        layout = Layout2(nbt=nbt)
+        layout = Layout1Brick(nbt=nbt)
 
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
 
-        layout.add(tick_delay=2, notes_integer=notes_int, notes_half=notes_half)
+        layout.build(notes_integer=notes_int, notes_half=notes_half)
 
         # Check if data was populated
-        self.assertTrue(np.any(layout.data.data['f0'])) # Check if any block is present
+        self.assertTrue(len(layout.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            # We must apply clean() with a floor to resolve needs_down like in the real app
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            layout.clean(floor_idx)
+
+            render_data_to_image(
+                layout.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 1",
+                output_path="output/debug_images/test_layout1.png"
+            )
+            export_topdown_grid(
+                layout.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 1 Grid",
+                csv_path="output/debug_images/test_layout1_grid.csv",
+                img_path="output/debug_images/test_layout1_grid.png"
+            )
 
     def test_write_nbt(self):
         nbt = CustomNBT()
-        layout = Layout2(nbt=nbt)
+        layout = Layout1Brick(nbt=nbt)
+        layout.add_block(0, 0, 0, 1)
+
+        initial_blocks = len(nbt.nbtfile['blocks'])
+        layout.write_nbt()
+        self.assertTrue(len(nbt.nbtfile['blocks']) > initial_blocks)
+
+class TestTrackAssembly(unittest.TestCase):
+    def test_layout1_track_assembly(self):
+        nbt = CustomNBT()
+        track = Layout1Track(nbt_template=nbt)
+
+        # Simulate df_notes
+        data = {
+            'note entier': [[Note(1, 0)], [], [Note(5, 0), Note(7, 0)]],
+            'note demi': [[], [Note(3, 0)], []]
+        }
+        df_notes = pd.DataFrame(data, index=[0, 2, 4])
+
+        track.build_sequence(df_notes)
+        self.assertTrue(len(track.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            track.clean(floor_idx)
+
+            render_data_to_image(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 1",
+                output_path="output/debug_images/test_layout1_track.png"
+            )
+            export_topdown_grid(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 1 Grid",
+                csv_path="output/debug_images/test_layout1_track_grid.csv",
+                img_path="output/debug_images/test_layout1_track_grid.png"
+            )
+
+    def test_layout2_track_assembly(self):
+        nbt = CustomNBT()
+        track = Layout2Track(nbt_template=nbt)
+
+        # Simulate df_notes sequence long enough to see the snake turn
+        data = {
+            'note entier': [[Note(1, 0)], [], [Note(5, 0)], [Note(7, 0)], [], [Note(12, 0)]],
+            'note demi': [[], [Note(3, 0)], [], [], [Note(9, 0)], []]
+        }
+        df_notes = pd.DataFrame(data, index=[0, 2, 4, 6, 8, 10])
+
+        track.build_sequence(df_notes)
+        self.assertTrue(len(track.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            track.clean(floor_idx)
+
+            render_data_to_image(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 2",
+                output_path="output/debug_images/test_layout2_track.png"
+            )
+            export_topdown_grid(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 2 Grid",
+                csv_path="output/debug_images/test_layout2_track_grid.csv",
+                img_path="output/debug_images/test_layout2_track_grid.png"
+            )
+
+class TestLayout2(unittest.TestCase):
+    def test_add_notes(self):
+        nbt = CustomNBT()
+        layout = Layout2Brick(nbt=nbt)
+
+        notes_int = [Note(1, 0), Note(5, 0)]
+        notes_half = [Note(3, 0)]
+
+        layout.build(notes_integer=notes_int, notes_half=notes_half)
+
+        # Check if data was populated
+        self.assertTrue(len(layout.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            layout.clean(floor_idx)
+
+            render_data_to_image(
+                layout.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 2",
+                output_path="output/debug_images/test_layout2.png"
+            )
+            export_topdown_grid(
+                layout.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Layout 2 Grid",
+                csv_path="output/debug_images/test_layout2_grid.csv",
+                img_path="output/debug_images/test_layout2_grid.png"
+            )
+
+    def test_write_nbt(self):
+        nbt = CustomNBT()
+        layout = Layout2Brick(nbt=nbt)
         layout.add_block(0, 0, 0, 1)
 
         initial_blocks = len(nbt.nbtfile['blocks'])

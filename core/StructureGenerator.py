@@ -1,8 +1,8 @@
 import numpy as np
 from core.customNBT import CustomNBT
-from core.data import Data
-from core.Layout1 import Layout1
-from core.Layout2 import Layout2
+from core.brick import Brick
+from core.Layout1 import Layout1Track
+from core.Layout2 import Layout2Track
 
 class StructureGenerator:
     """
@@ -13,65 +13,27 @@ class StructureGenerator:
         self.df_notes = processed_data
         self.nbt_template = nbt_template
         self.layout_type = layout_type
-        self.global_data = Data()
+        self.global_data = Brick()
         self.palettes = palettes or {}
 
     def generate_blocks(self):
-        """Processes notes and maps them to a global Data array using the selected layout."""
-        self.global_data = Data()
-        last_tick = -1
-        direction = 0
-        pos = [1, 0, 0]
+        """Processes notes and maps them to a global Brick structure using the selected layout track."""
+        if "Layout1" in self.layout_type:
+            track = Layout1Track(nbt_template=self.nbt_template)
+        else:
+            track = Layout2Track(nbt_template=self.nbt_template)
 
-        for tick in self.df_notes.index:
-            tick_diff = int(tick - last_tick)
+        track.build_sequence(self.df_notes)
+        self.global_data = track
 
-            # Instantiate the chosen layout
-            if "Layout1" in self.layout_type:
-                layout = Layout1(nbt=self.nbt_template)
-            else:
-                layout = Layout2(nbt=self.nbt_template)
+        # Before decoration, we must resolve all 'needs_down' constraints
+        # using a default floor block, e.g. stone or wood if specified
+        if self.palettes and self.palettes.get('floor'):
+            floor_index = self.nbt_template.get_index(f"minecraft:{self.palettes['floor'][0]}")
+        else:
+            floor_index = self.nbt_template.get_index_safe("minecraft:stone")
 
-            layout.tick = int(last_tick)
-
-            # Get notes for this tick
-            notes_entier = self.df_notes.loc[tick]['note entier']
-            notes_demi = self.df_notes.loc[tick]['note demi']
-
-            # Set position BEFORE advancing the coordinates for the next tick
-            layout.data.position = [pos[0], pos[1], pos[2]]
-
-            # Basic serpentine logic (can be expanded for straight Minecart logic)
-            if "Layout2" in self.layout_type:
-                if direction % 4 == 0:
-                    layout.add(tick_diff, notes_entier, notes_demi, is_symmetric=True)
-                    pos[0] += 1
-                    pos[2] += -2
-                elif direction % 4 == 1:
-                    layout.add(tick_diff, notes_entier, notes_demi)
-                    layout.flip()
-                    layout.rotate(-1)
-                    pos[0] += 2
-                    pos[2] += -1
-                elif direction % 4 == 2:
-                    layout.add(tick_diff, notes_entier, notes_demi, is_symmetric=True)
-                    layout.flip()
-                    pos[0] += 1
-                    pos[2] += 2
-                else:
-                    layout.add(tick_diff, notes_entier, notes_demi)
-                    layout.rotate(1)
-                    pos[0] += 2
-                    pos[2] += 1
-                direction += 1
-            else:
-                # Layout1 (Minecart) just goes straight
-                layout.add(tick_diff, notes_entier, notes_demi)
-                pos[0] += 1
-
-            # Merge the placed layout section
-            self.global_data.add_data(layout.data)
-            last_tick = tick
+        self.global_data.clean(floor_index)
 
         self.apply_decoration()
 
@@ -82,30 +44,18 @@ class StructureGenerator:
 
         import random
 
-        # Determine the bounding box of the generated structure
-        sX, sY, sZ = self.global_data.shape
-        if sX == 0 or sZ == 0:
+        if not self.global_data.blocks:
             return
 
-        min_x, max_x = 0, 0
-        min_z, max_z = 0, 0
+        xs = [b['pos'][0] for b in self.global_data.blocks]
+        zs = [b['pos'][2] for b in self.global_data.blocks]
 
-        # We need to find the actual min/max indices where blocks exist
-        for i in range(sX):
-            for k in range(sZ):
-                if np.any(self.global_data.data[i - sX//2, :, k - sZ//2]['f0']):
-                    min_x = min(min_x, i - sX//2)
-                    max_x = max(max_x, i - sX//2)
-                    min_z = min(min_z, k - sZ//2)
-                    max_z = max(max_z, k - sZ//2)
+        min_x = min(xs) - 3
+        max_x = max(xs) + 3
+        min_z = min(zs) - 3
+        max_z = max(zs) + 3
 
-        # Add some padding
-        min_x -= 3
-        max_x += 3
-        min_z -= 3
-        max_z += 3
-
-        data_deco = Data()
+        data_deco = Brick()
 
         floor_blocks = self.palettes.get('floor', [])
         ceiling_blocks = self.palettes.get('ceiling', [])
@@ -152,39 +102,33 @@ class StructureGenerator:
         self.global_data.set_layers(5)
 
         # Determine number of layers
-        max_layer = int(np.max(self.global_data.data['f4'])) if self.global_data.data.size > 0 else 0
+        max_layer = 0
+        for block in self.global_data.blocks:
+            max_layer = max(max_layer, block['metadata'].get('layer', 0))
+
         nb_layers = max_layer + 1
 
-        layouts = [Data() for _ in range(nb_layers)]
-        for i in range(nb_layers):
-            layouts[i].reshape(0, 0, self.global_data.shape[2] - 1)
+        layouts = [Brick() for _ in range(nb_layers)]
 
         offsets = [None] * nb_layers
         offset_y = -10
         offset_z = 0
 
-        sX, sY, sZ = self.global_data.shape
-        for i in range(sX):
-            for j in range(sY):
-                for k in range(sZ):
-                    i2 = i - sX // 2
-                    j2 = j - sY // 2
-                    k2 = k - sZ // 2
+        for block in self.global_data.blocks:
+            layer = block['metadata'].get('layer', 0)
+            x, y, z = block['pos']
 
-                    cell = self.global_data.data[i2, j2, k2]
-                    if cell['f0']:  # If block is present
-                        layer = int(cell['f4'])
-                        if offsets[layer] is None:
-                            offsets[layer] = i2
-                            layouts[layer].position = [0, 0, 0]
+            if offsets[layer] is None:
+                offsets[layer] = x
+                layouts[layer].position = [0, 0, 0]
 
-                        layouts[layer].add_block(
-                            i2 - offsets[layer],
-                            j2 - offset_y,
-                            k2 - offset_z,
-                            cell['f1'],
-                            0
-                        )
+            layouts[layer].add_block(
+                x - offsets[layer],
+                y - offset_y,
+                z - offset_z,
+                block['index'],
+                0
+            )
 
         # Export individual layer parts
         for i, layout in enumerate(layouts):
