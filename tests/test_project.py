@@ -6,7 +6,8 @@ import numpy as np
 from core.brick import Brick
 from core.customNBT import CustomNBT
 from core.Layout2 import Layout2Brick
-from core.Layout1 import Layout1Brick
+from core.Layout1 import Layout1Brick, Layout1Track
+from core.Layout2 import Layout2Track
 from core.MusicData import prep_data, Note
 import core.ReadNBS as ReadNBS
 import sys
@@ -117,6 +118,71 @@ class TestLayout1(unittest.TestCase):
         initial_blocks = len(nbt.nbtfile['blocks'])
         layout.write_nbt()
         self.assertTrue(len(nbt.nbtfile['blocks']) > initial_blocks)
+
+class TestTrackAssembly(unittest.TestCase):
+    def test_layout1_track_assembly(self):
+        nbt = CustomNBT()
+        track = Layout1Track(nbt_template=nbt)
+
+        # Simulate df_notes
+        data = {
+            'note entier': [[Note(1, 0)], [], [Note(5, 0), Note(7, 0)]],
+            'note demi': [[], [Note(3, 0)], []]
+        }
+        df_notes = pd.DataFrame(data, index=[0, 2, 4])
+
+        track.build_sequence(df_notes)
+        self.assertTrue(len(track.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            track.clean(floor_idx)
+
+            render_data_to_image(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 1",
+                output_path="output/debug_images/test_layout1_track.png"
+            )
+            export_topdown_grid(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 1 Grid",
+                csv_path="output/debug_images/test_layout1_track_grid.csv",
+                img_path="output/debug_images/test_layout1_track_grid.png"
+            )
+
+    def test_layout2_track_assembly(self):
+        nbt = CustomNBT()
+        track = Layout2Track(nbt_template=nbt)
+
+        # Simulate df_notes sequence long enough to see the snake turn
+        data = {
+            'note entier': [[Note(1, 0)], [], [Note(5, 0)], [Note(7, 0)], [], [Note(12, 0)]],
+            'note demi': [[], [Note(3, 0)], [], [], [Note(9, 0)], []]
+        }
+        df_notes = pd.DataFrame(data, index=[0, 2, 4, 6, 8, 10])
+
+        track.build_sequence(df_notes)
+        self.assertTrue(len(track.blocks) > 0)
+
+        if CAN_VISUALIZE:
+            floor_idx = nbt.get_index_safe("minecraft:stone")
+            track.clean(floor_idx)
+
+            render_data_to_image(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 2",
+                output_path="output/debug_images/test_layout2_track.png"
+            )
+            export_topdown_grid(
+                track.blocks,
+                nbt_palette=nbt.nbtfile['palette'],
+                title="Test Track Layout 2 Grid",
+                csv_path="output/debug_images/test_layout2_track_grid.csv",
+                img_path="output/debug_images/test_layout2_track_grid.png"
+            )
 
 class TestLayout2(unittest.TestCase):
     def test_add_notes(self):
