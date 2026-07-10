@@ -1,11 +1,16 @@
-Z \ X,0,1,2
+Z \ X,-1,0,1,2
 -1,"Y:-2 minecraft:stone
 Y:-1 minecraft:copper_block
-Y:0 minecraft:note_block",,
-0,"Y:0 minecraft:oak_planks
-Y:1 minecraft:sticky_piston",Y:1 minecraft:redstone_block,
+Y:0 minecraft:note_block","Y:-1 minecraft:stone
+Y:0 minecraft:redstone_wire",,
+0,,"Y:0 minecraft:oak_planks
+Y:1 minecraft:sticky_piston","Y:-1 minecraft:stone
+Y:0 minecraft:repeater
+Y:1 minecraft:redstone_block",
 1,"Y:-2 minecraft:stone
 Y:-1 minecraft:copper_block
-Y:0 minecraft:note_block",,"Y:-1 minecraft:stone
+Y:0 minecraft:note_block","Y:-1 minecraft:stone
+Y:0 minecraft:redstone_wire","Y:0 minecraft:stone
+Y:1 minecraft:redstone_wire","Y:-1 minecraft:stone
 Y:0 minecraft:copper_block
 Y:1 minecraft:note_block"
