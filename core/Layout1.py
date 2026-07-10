@@ -29,7 +29,7 @@ class Layout1Brick(LayoutBase):
     def __init__(self, start_x=0, start_y=0, start_z=0):
         super().__init__(x=start_x, y=start_y, z=start_z)
 
-    def build(self, notes_integer=None, notes_half=None, delay=1, is_symmetric=True):
+    def build(self, notes_integer=None, notes_half=None, delay=1, branch_shape='I'):
         """
         Builds a single tick's worth of blocks for the straight layout.
         Notes branch off sideways from the central block.
@@ -50,13 +50,13 @@ class Layout1Brick(LayoutBase):
         brick_int.add_block(1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
 
         # Place notes branching off to the sides (z-axis)
-        if is_symmetric:
+        if branch_shape == 'I':
             for i in range(integer_note_count):
                 side = 1 if i % 2 == 0 else -1
                 depth = (i // 2) + 1
                 brick_int.add_block(0, 0, depth * side, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
                 self.add_note_to_brick(brick_int, -1, 0, depth * side, notes_integer[i])
-        else:
+        else: # 'L' shape
             for i in range(integer_note_count):
                 z_pos = i + 1
                 brick_int.add_block(0, 0, z_pos, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
@@ -68,13 +68,13 @@ class Layout1Brick(LayoutBase):
             brick_half.add_block(0, 1, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
             brick_half.add_block(1, 1, 0, "minecraft:redstone_block", tick=self.tick)
 
-            if is_symmetric:
+            if branch_shape == 'I':
                 for i in range(half_note_count):
                     side = 1 if i % 2 == 0 else -1
                     depth = (i // 2) + 1
                     brick_half.add_block(1, 1, depth * side, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
                     self.add_note_to_brick(brick_half, 2, 1, depth * side, notes_half[i])
-            else:
+            else: # 'L' shape
                 for i in range(half_note_count):
                     z_pos = i + 1
                     brick_half.add_block(1, 1, z_pos, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
@@ -89,9 +89,9 @@ class Layout1Track(Brick):
     """
     Manages a sequence of Layout1Bricks, assembling them into a continuous straight line.
     """
-    def __init__(self, is_symmetric=True):
+    def __init__(self, branch_shape='I'):
         super().__init__()
-        self.is_symmetric = is_symmetric
+        self.branch_shape = branch_shape
 
     def build_sequence(self, df_notes):
         """Processes notes and maps them to a continuous straight line of bricks."""
@@ -110,7 +110,7 @@ class Layout1Track(Brick):
             notes_demi = df_notes.loc[tick]['note demi']
 
             # Build the brick (includes the repeater now)
-            brick.build(notes_entier, notes_demi, delay=actual_delay, is_symmetric=self.is_symmetric)
+            brick.build(notes_entier, notes_demi, delay=actual_delay, branch_shape=self.branch_shape)
 
             # Build the parallel minecart track
             minecart = MinecartBrick()

@@ -126,6 +126,7 @@ with tab2:
             f.write(uploaded_file_2.getbuffer())
 
         layout_type = st.selectbox("Select Structure Layout:", ["Layout2 (Compact Serpentine)", "Layout1 (Minecart)"])
+        branch_shape = st.selectbox("Forme des branches", ["I", "L"], help="Forme 'I' place des notes de chaque côté. Forme 'L' place les notes d'un seul côté.")
         export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"])
 
         st.subheader("Decoration Palette")
@@ -145,7 +146,8 @@ with tab2:
         palettes = {
             "floor": selected_floor,
             "flowers": selected_flowers,
-            "ceiling": selected_ceiling
+            "ceiling": selected_ceiling,
+            "branch_shape": branch_shape
         }
 
         if st.button("Generate NBT"):
@@ -251,78 +253,59 @@ with tab3:
         def make_notes(count):
             return [Note(random.randint(0, 24), random.randint(0, 5)) for _ in range(count)]
 
-        # Test 1: Dense Layout1
+        # Test 1: Layout 1 (Shape I)
         nbt1 = CustomNBT()
         l1 = Layout1Brick()
-        l1.build(notes_integer=make_notes(10), notes_half=make_notes(10))
+        l1.build(notes_integer=make_notes(10), notes_half=make_notes(10), branch_shape='I')
         l1.clean("minecraft:stone")
         l1.write_nbt(nbt1)
-        nbt1.write_file("output/debug/debug_layout1_dense.nbt")
+        nbt1.write_file("output/debug/debug_layout1_shape_I.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense", "output/debug_images/debug_layout1_dense.png")
-            export_topdown_grid(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 Dense Grid", "output/debug_images/debug_layout1_dense_grid.csv", "output/debug_images/debug_layout1_dense_grid.png")
-        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_dense")
+            render_data_to_image(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 (Shape I)", "output/debug_images/debug_layout1_shape_I.png")
+            export_topdown_grid(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 (Shape I) Grid", "output/debug_images/debug_layout1_shape_I_grid.csv", "output/debug_images/debug_layout1_shape_I_grid.png")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_shape_I")
         test_index += 1
 
-        # Test 2: Dense Layout2 (Base)
+        # Test 2: Layout 1 (Shape L)
         nbt2 = CustomNBT()
-        l2 = Layout2Brick()
-        l2.build(notes_integer=make_notes(10), notes_half=make_notes(10))
+        l2 = Layout1Brick()
+        l2.build(notes_integer=make_notes(10), notes_half=make_notes(10), branch_shape='L')
         l2.clean("minecraft:stone")
         l2.write_nbt(nbt2)
-        nbt2.write_file("output/debug/debug_layout2_dense.nbt")
+        nbt2.write_file("output/debug/debug_layout1_shape_L.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l2.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense", "output/debug_images/debug_layout2_dense.png")
-            export_topdown_grid(l2.blocks, nbt2.nbtfile['palette'], "Layout 2 Dense Grid", "output/debug_images/debug_layout2_dense_grid.csv", "output/debug_images/debug_layout2_dense_grid.png")
-        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense")
+            render_data_to_image(l2.blocks, nbt2.nbtfile['palette'], "Layout 1 (Shape L)", "output/debug_images/debug_layout1_shape_L.png")
+            export_topdown_grid(l2.blocks, nbt2.nbtfile['palette'], "Layout 1 (Shape L) Grid", "output/debug_images/debug_layout1_shape_L_grid.csv", "output/debug_images/debug_layout1_shape_L_grid.png")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_shape_L")
         test_index += 1
 
-        # Test 3: Dense Layout2 (Symmetric)
-        # Symmetry is now an after-effect, so we just build and then rotate/flip manually
-        # to simulate the "Symmetric" version
+        # Test 3: Layout 2 (Shape I)
         nbt3 = CustomNBT()
         l3 = Layout2Brick()
-        l3.build(notes_integer=make_notes(10), notes_half=make_notes(10))
-        l3.flip()
+        l3.build(notes_integer=make_notes(10), notes_half=make_notes(10), branch_shape='I')
         l3.clean("minecraft:stone")
         l3.write_nbt(nbt3)
-        nbt3.write_file("output/debug/debug_layout2_dense_sym.nbt")
+        nbt3.write_file("output/debug/debug_layout2_shape_I.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense (Symmetric)", "output/debug_images/debug_layout2_dense_sym.png")
-            export_topdown_grid(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 Dense Sym Grid", "output/debug_images/debug_layout2_dense_sym_grid.csv", "output/debug_images/debug_layout2_dense_sym_grid.png")
-        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_dense_sym")
+            render_data_to_image(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 (Shape I)", "output/debug_images/debug_layout2_shape_I.png")
+            export_topdown_grid(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 (Shape I) Grid", "output/debug_images/debug_layout2_shape_I_grid.csv", "output/debug_images/debug_layout2_shape_I_grid.png")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_shape_I")
         test_index += 1
 
-        # Test 4: Layout2 Flipped
+        # Test 4: Layout 2 (Shape L)
         nbt4 = CustomNBT()
         l4 = Layout2Brick()
-        l4.build(notes_integer=make_notes(10), notes_half=make_notes(10))
-        l4.flip()
+        l4.build(notes_integer=make_notes(10), notes_half=make_notes(10), branch_shape='L')
         l4.clean("minecraft:stone")
         l4.write_nbt(nbt4)
-        nbt4.write_file("output/debug/debug_layout2_flipped.nbt")
+        nbt4.write_file("output/debug/debug_layout2_shape_L.nbt")
         if CAN_VISUALIZE:
-            render_data_to_image(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped", "output/debug_images/debug_layout2_flipped.png")
-            export_topdown_grid(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 Flipped Grid", "output/debug_images/debug_layout2_flipped_grid.csv", "output/debug_images/debug_layout2_flipped_grid.png")
-        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_flipped")
+            render_data_to_image(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 (Shape L)", "output/debug_images/debug_layout2_shape_L.png")
+            export_topdown_grid(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 (Shape L) Grid", "output/debug_images/debug_layout2_shape_L_grid.csv", "output/debug_images/debug_layout2_shape_L_grid.png")
+        spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_shape_L")
         test_index += 1
 
-        # Test 5-8: Layout2 Rotations
-        for rot in range(1, 4):
-            nbt_rot = CustomNBT()
-            l_rot = Layout2Brick()
-            l_rot.build(notes_integer=make_notes(10), notes_half=make_notes(10))
-            l_rot.rotate(rot)
-            l_rot.clean("minecraft:stone")
-            l_rot.write_nbt(nbt_rot)
-            nbt_rot.write_file(f"output/debug/debug_layout2_rot{rot}.nbt")
-            if CAN_VISUALIZE:
-                render_data_to_image(l_rot.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rotation {rot}", f"output/debug_images/debug_layout2_rot{rot}.png")
-                export_topdown_grid(l_rot.blocks, nbt_rot.nbtfile['palette'], f"Layout 2 Rot {rot} Grid", f"output/debug_images/debug_layout2_rot{rot}_grid.csv", f"output/debug_images/debug_layout2_rot{rot}_grid.png")
-            spawner_nbt.add_structure_block([test_index * 15, 0, 0], f"debug_layout2_rot{rot}")
-            test_index += 1
-
-        # Test 9: Complete Serpentine Assembly
+        # Test 5: Complete Serpentine Assembly
         # Creates a 10-tick sequence to test StructureGenerator's automatic snake routing
         data_seq = {
             'tick': list(range(0, 20, 2)),
@@ -332,7 +315,7 @@ with tab3:
         df_seq = pd.DataFrame(data_seq).set_index('tick')
 
         nbt_seq = CustomNBT()
-        gen_seq = StructureGenerator(df_seq, layout_type="Layout2")
+        gen_seq = StructureGenerator(df_seq, layout_type="Layout2", palettes={"branch_shape": "L"})
         gen_seq.generate_blocks()
 
         # We manually clean here with a stone block fallback to ensure tests are stable
@@ -350,4 +333,4 @@ with tab3:
         spawner_nbt.add_block([-1, 1, 0], index_button)
         spawner_nbt.write_file("output/debug/debug_spawner.nbt")
 
-        st.success(f"Successfully generated 9 complex test bricks and 1 assembly sequence in `output/debug/`")
+        st.success(f"Successfully generated 4 shape test bricks and 1 assembly sequence in `output/debug/`")

@@ -10,7 +10,7 @@ class Layout2Brick(LayoutBase):
     def __init__(self, x=0, y=0, z=0, facing='south', direction=-1):
         super().__init__(x=x, y=y, z=z, facing=facing, direction=direction)
         
-    def build(self, notes_integer=None, notes_half=None, delay=1, is_symmetric=True):
+    def build(self, notes_integer=None, notes_half=None, delay=1, branch_shape='I'):
         """
         Adds a segment of the song (one or more ticks) to the layout.
 
@@ -33,20 +33,18 @@ class Layout2Brick(LayoutBase):
         # Repeater connecting to the previous block (now positioned within the brick_int itself)
         brick_int.add_block(0, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
 
+        # The connecting redstone wire for the serpentine pattern
+        # Since the serpentine ALWAYS connects to the back via [1,0,-1], we MUST put a redstone wire here
+        # or the repeater won't turn the corner.
+        brick_int.add_block(1, 0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+
         if integer_note_count == 0:
             brick_int.add_block(1, 0, 0, "minecraft:oak_planks")
         else:
             self.add_note_to_brick(brick_int, 1, 0, 0, notes_integer[0])
 
-        if integer_note_count > 1 or half_note_count > 0:
-            # We add redstone to propagate signal sideways
-            if is_symmetric:
-                brick_int.add_block(1, 0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-            else:
-                brick_int.add_block(1, 0, 1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-
-        # Redstone side notes
-        if is_symmetric:
+        if branch_shape == 'I':
+            # "I" Shape (Symmetrical): Notes placed on both +z and -z
             if half_note_count == 0 and integer_note_count <= 5:
                 if integer_note_count >= 2:
                     self.add_note_to_brick(brick_int, 1, 0, 1, notes_integer[1])
@@ -70,6 +68,10 @@ class Layout2Brick(LayoutBase):
                 if integer_note_count >= 3:
                     self.add_note_to_brick(brick_int, 0, -1, -1, notes_integer[2])
         else:
+            # "L" Shape: Notes placed ONLY on the +z side
+            if integer_note_count > 1 or half_note_count > 0:
+                brick_int.add_block(1, 0, 1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+
             if integer_note_count >= 2:
                 self.add_note_to_brick(brick_int, 2, 0, 0, notes_integer[1])
             if integer_note_count >= 3:
@@ -78,7 +80,6 @@ class Layout2Brick(LayoutBase):
                 self.add_note_to_brick(brick_int, 2, -1, 1, notes_integer[3])
 
         # Piston side logic (half ticks) - rotated parts
-        # If is_symmetric is False, we flip the internal logic of half_notes so it builds on the +z side
         sub_brick_half = Brick()
 
         if notes_half is not None:
@@ -140,7 +141,7 @@ class Layout2Brick(LayoutBase):
 
         sub_brick_half.translate(1, 0, 0)
 
-        if not is_symmetric:
+        if branch_shape == 'L':
             sub_brick_half.flip(axis='z')
 
         brick_half.add_data(sub_brick_half)
@@ -152,9 +153,9 @@ class Layout2Track(Brick):
     """
     Manages a sequence of Layout2Bricks, assembling them into a continuous serpentine layout.
     """
-    def __init__(self, is_symmetric=True):
+    def __init__(self, branch_shape='I'):
         super().__init__()
-        self.is_symmetric = is_symmetric
+        self.branch_shape = branch_shape
 
     def build_sequence(self, df_notes):
         """Processes notes and maps them to a serpentine sequence of bricks."""
@@ -178,7 +179,7 @@ class Layout2Track(Brick):
 
             # Serpentine logic
             # Repeater is now built-in inside brick_int based on the delay provided
-            brick.build(notes_entier, notes_demi, delay=actual_delay, is_symmetric=self.is_symmetric)
+            brick.build(notes_entier, notes_demi, delay=actual_delay, branch_shape=self.branch_shape)
 
             if direction % 4 == 0:
                 pos[0] += 1
@@ -189,12 +190,10 @@ class Layout2Track(Brick):
                 pos[0] += 2
                 pos[2] += -1
             elif direction % 4 == 2:
-                brick.flip(axis='x')
-                brick.flip(axis='z')
+                brick.flip(axis='z') # Just flip z, do not flip x (original behavior)
                 pos[0] += 1
                 pos[2] += 2
             else:
-                brick.flip(axis='x')
                 brick.rotate(1)
                 pos[0] += 2
                 pos[2] += 1
