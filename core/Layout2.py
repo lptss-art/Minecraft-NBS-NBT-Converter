@@ -167,27 +167,29 @@ class Layout2Track(Brick):
 
             # Re-add repeater logic in Track
             actual_delay = max(1, min(4, tick_diff))
-            brick.add_block(0, 0, 0, "minecraft:repeater", {"facing": "west", "delay": actual_delay}, tick=brick.tick, needs_down=True)
 
-            brick.add_block(1, 0, -1, "minecraft:redstone_wire", tick=brick.tick, needs_down=True)
-
-            # Since we flip/rotate, we must apply those to the connecting bits too if they were part of the brick,
-            # BUT the repeater needs specific orientations.
-            # However, the user asked to move connection to the Track. Let's do it exactly:
-            # Re-apply the flips and rotations to ensure correct Repeater/Redstone placement dynamically:
-
+            # Determine the correct repeater facing direction based on the serpentine logic
+            repeater_facing = "west"
             if direction % 4 == 0:
+                repeater_facing = "west"
                 pos[0] += 1
                 pos[2] += -2
             elif direction % 4 == 1:
+                repeater_facing = "north"
                 pos[0] += 2
                 pos[2] += -1
             elif direction % 4 == 2:
+                repeater_facing = "east"
                 pos[0] += 1
                 pos[2] += 2
             else:
+                repeater_facing = "south"
                 pos[0] += 2
                 pos[2] += 1
+
+            brick.add_block(0, 0, 0, "minecraft:repeater", {"facing": repeater_facing, "delay": actual_delay}, tick=brick.tick, needs_down=True)
+
+            brick.add_block(1, 0, -1, "minecraft:redstone_wire", tick=brick.tick, needs_down=True)
 
             direction += 1
 
