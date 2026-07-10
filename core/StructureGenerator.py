@@ -17,10 +17,15 @@ class StructureGenerator:
 
     def generate_blocks(self):
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
+        # Check if symmetric configuration is requested in palettes
+        is_symmetric = True
+        if self.palettes and 'is_symmetric' in self.palettes:
+            is_symmetric = self.palettes['is_symmetric']
+
         if "Layout1" in self.layout_type:
-            track = Layout1Track()
+            track = Layout1Track(is_symmetric=is_symmetric)
         else:
-            track = Layout2Track()
+            track = Layout2Track(is_symmetric=is_symmetric)
 
         track.build_sequence(self.df_notes)
         self.global_data = track
@@ -141,6 +146,6 @@ class StructureGenerator:
                 # Place a Structure Block to load the part
                 name = f"{prefix}_{n_layout}"
                 # Base is at x=0, z=0. The parts offset along x based on the serpentine logic.
-                nbt_base.add_structure_block([offset, 0, 0], f"minecraft:{name}", 0, 0, 0)
+                nbt_base.add_structure_block([offset, 0, 0], name, 0, 0, 0)
 
         nbt_base.write_file(os.path.join(output_dir, "base_start.nbt"))
