@@ -18,55 +18,51 @@ class Layout2Brick(LayoutBase):
         notes_half = notes_half or []
         nb_integer, nb_half = len(notes_integer), len(notes_half)
 
-        # We apply blocks directly to a sub-brick first so we can manipulate it before the final merge
-        brick_int = Brick()
-
-        # We define a cursor that acts like self.translate
+        # We apply blocks directly to self. Using cursor_x to emulate translations safely
         cursor_x, cursor_y, cursor_z = 0, 0, 0
 
         def add_at(x, y, z, block_name, properties=None, needs_down=False):
-            brick_int.add_block(cursor_x + x, cursor_y + y, cursor_z + z, block_name, properties, tick=self.tick, needs_down=needs_down)
+            self.add_block(cursor_x + x, cursor_y + y, cursor_z + z, block_name, properties, tick=self.tick, needs_down=needs_down)
 
         def add_note_at(x, y, z, note):
-            self.add_note_to_brick(brick_int, cursor_x + x, cursor_y + y, cursor_z + z, note)
+            self.add_note_to_brick(self, cursor_x + x, cursor_y + y, cursor_z + z, note)
 
         # =========================================================================
         # CONFIGURATIONS DES COORDONNÉES
         # =========================================================================
 
-        # Format : (x, y, z, declenche_translation_et_blocs)
         CONFIG_HALF = [
             (1,  0,  0, False),
             (0,  0, -1, False),
             (0,  0,  1, False),
-            (1,  0,  0, True),   # Index 3 : Déclenche translate + blocs de support
+            (1,  0,  0, True),   # Index 3 : Déclenche translate + redstone dust
             (0, -1,  1, False),
             (0, -1, -1, False),
-            (0, -1,  1, True),   # Index 6 : Déclenche translate + blocs de support
+            (0, -1,  1, True),   # Index 6 : Déclenche translate + redstone dust
             (0, -1, -1, False)
+        ]
+
+        CONFIG_INTEGER = [
+            (0, (0, 0, 0), False), # le 1 sera posé en fonction de L ou pas L, mais sera fait en dernier
+            (2, (1, -1,  1), False),
+            (3, (-1, -1,  1), False),
+            (4, (1, 0,  0), False) #le 4 sera posé si pas posé si demi notes ou si plus de 4 notes entières
+        ]
+
+        CONFIG_INTEGER_1 = [
+            ("L", (0, 0,  -1)),
+            ("I", (0, 0,  1))
         ]
 
         # Format : (index_relatif_note, (x, y, z), declenche_translation)
         CONFIG_INTEGER_PISTON = [
-            (3, (0, -1, -1), False),
-            (4, (0, -1,  1), False),
-            (5, (0, -1, -1), True),  # Index 5 : Déclenche translate + blocs
-            (6, (0, -1,  1), False),
-            (7, (0, -1, -1), True),  # Index 7 : Déclenche translate + blocs
-            (8, (0, -1,  1), False)
+            (4, (0, -1, -1), True),
+            (5, (0, -1,  1), False),
+            (6, (0, -1, -1), True),  # Index 6 : Déclenche translate + redstone dust
+            (7, (0, -1,  1), False),
+            (8, (0, -1, -1), True),  # Index 8 : Déclenche translate + redstone dust
+            (9, (0, -1,  1), False)
         ]
-
-        # Évaluation des cas pour les notes côté redstone
-        case_1 = (nb_half == 0 and nb_integer <= 5)
-        case_2 = (nb_half == 1 and nb_integer <= 4)
-
-        # Renvoie les coordonnées (x, y, z) dynamiquement selon l'état du circuit
-        CONFIG_REDSTONE = {
-            1: lambda: (1, 0, 1) if (case_1 or not en_L) else (2, 0, 0),
-            2: lambda: (0, -1, -1),
-            3: lambda: (0, -1, -1) if case_1 else ((2, -1, -1) if (case_2 or en_L) else None),
-            4: lambda: (2, -1, -1) if case_1 else None
-        }
 
         # =========================================================================
         # LOGIQUE D'EXÉCUTION
@@ -95,7 +91,7 @@ class Layout2Brick(LayoutBase):
             add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
 
             for idx, (x, y, z), trigger_translation in CONFIG_INTEGER_PISTON:
-                if nb_integer >= (idx + 1 + offset):
+                if nb_integer > (idx + offset):
                     if trigger_translation:
                         cursor_x += 1
                         add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
@@ -104,31 +100,40 @@ class Layout2Brick(LayoutBase):
 
             cursor_x += 1
 
-        # 3. Rotation & Centre (L'intention de "en_L" prend tout son sens ici)
+        # 3. Rotation si L (affecte tout ce qui a été construit jusqu'à présent)
         if en_L:
-            brick_int.rotate(1)
+            self.rotate(1)
 
-        brick_int.translate(1, 0, 0)
-
+        # 4. Placement Notes Entières Base (CONFIG_INTEGER)
+        # We process the remaining notes around the origin (0,0,0)
+        # Note 0 is at (0,0,0)
         if nb_integer == 0:
-            # We use oak planks for the center block as standard
-            brick_int.add_block(1, 0, 0, "minecraft:oak_planks", tick=self.tick)
+            self.add_block(0, 0, 0, "minecraft:oak_planks", tick=self.tick)
         else:
-            self.add_note_to_brick(brick_int, 1, 0, 0, notes_integer[0])
+            self.add_note_to_brick(self, 0, 0, 0, notes_integer[0])
 
-        # 4. Notes Côté Redstone
-        for idx in range(1, 5):
-            if nb_integer >= idx + 1 and idx in CONFIG_REDSTONE:
-                coords = CONFIG_REDSTONE[idx]()
-                if coords:
-                    self.add_note_to_brick(brick_int, *coords, notes_integer[idx])
+        for idx, (x, y, z), _ in CONFIG_INTEGER:
+            if idx == 0: continue
 
-        # 5. Finitions Alimentation Redstone
-        brick_int.add_block(0,  0,  0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
+            # Conditionally place note 4 if no half notes and <= 4 integer notes
+            if idx == 4:
+                if nb_half == 0 and nb_integer <= 5:
+                    if nb_integer > 4:
+                        self.add_note_to_brick(self, x, y, z, notes_integer[4])
+                continue
 
-        brick_int.add_block(1,  0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+            if nb_integer > idx:
+                self.add_note_to_brick(self, x, y, z, notes_integer[idx])
 
-        self.add_data(brick_int)
+        # 5. Note 1 en fonction de L ou I (CONFIG_INTEGER_1)
+        if nb_integer > 1:
+            if en_L:
+                self.add_note_to_brick(self, 0, 0, -1, notes_integer[1])
+            else:
+                self.add_note_to_brick(self, 0, 0, 1, notes_integer[1])
+
+        # 6. Finitions Alimentation Redstone
+        self.add_block(-1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
 
 class Layout2Track(Brick):
     """
@@ -176,6 +181,8 @@ class Layout2Track(Brick):
                 brick.rotate(1)
 
             # Update coordinates for NEXT brick
+            # The base center is now (0,0,0) with repeater at (-1,0,0) and previous block expected at (-2,0,0).
+            # The new connection logic relies purely on these built-in positions.
             if direction % 4 == 0:
                 pos[0] += 1
                 pos[2] += -2
