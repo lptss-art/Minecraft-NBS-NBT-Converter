@@ -33,6 +33,9 @@ class CustomNBT:
         """Initializes the NBT file structure."""
         self.nbtfile = NBTFile()
 
+        # Add DataVersion for Minecraft compatibility
+        self.nbtfile["DataVersion"] = TAG_Int(3465) # Minecraft 1.20
+
         # size (dummy values initially)
         self.nbtfile["size"] = TAG_List(TAG_Int)
         self.nbtfile["size"].append(TAG_Int(3))

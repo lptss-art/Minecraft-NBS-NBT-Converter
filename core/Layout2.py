@@ -24,34 +24,34 @@ class Layout2Brick(LayoutBase):
         # CONFIGURATIONS DES COORDONNÉES
         # =========================================================================
 
+        # Format : (x, y, z, amount_of_translation)
         CONFIG_HALF = [
-            (1,  0,  0, False),
-            (0,  0, -1, False),
-            (0,  0,  1, False),
-            (1,  0,  0, True),
-            (0, -1,  1, False),
-            (0, -1, -1, False),
-            (0, -1,  1, True),
-            (0, -1, -1, False),
-            (0, -1,  1, True),
-            (0, -1, -1, False)
+            (1,  0,  0, 0),
+            (0,  0, -1, 0),
+            (0,  0,  1, 0),
+            (1,  0,  0, 2), # User requested translate by 2
+            (0, -1,  1, 0),
+            (0, -1, -1, 0),
+            (0, -1,  1, 1), # Translate 1
+            (0, -1, -1, 0),
+            (0, -1,  1, 1), # Translate 1
+            (0, -1, -1, 0)
         ]
 
         CONFIG_INTEGER = [
-            (0, (0, 0, 0), False), # le 1 sera posé en fonction de L ou pas L, mais sera fait en dernier
-            (2, (1, -1,  1), False),
-            (3, (-1, -1,  1), False),
-            (4, (1, 0,  0), False) #le 4 sera posé si pas posé si demi notes ou si plus de 4 notes entières
+            (0, (0, 0, 0), 0),
+            (2, (1, -1,  1), 0),
+            (3, (-1, -1,  1), 0),
+            (4, (1, 0,  0), 0)
         ]
 
-        # Format : (index_relatif_note, (x, y, z), declenche_translation)
         CONFIG_INTEGER_PISTON = [
-            (4, (0, -1, -1), True),
-            (5, (0, -1,  1), False),
-            (6, (0, -1, -1), True),  # Index 6 : Déclenche translate + redstone dust
-            (7, (0, -1,  1), False),
-            (8, (0, -1, -1), True),  # Index 8 : Déclenche translate + redstone dust
-            (9, (0, -1,  1), False)
+            (4, (0, -1, -1), 1),
+            (5, (0, -1,  1), 0),
+            (6, (0, -1, -1), 1),
+            (7, (0, -1,  1), 0),
+            (8, (0, -1, -1), 1),
+            (9, (0, -1,  1), 0)
         ]
 
         # =========================================================================
@@ -60,14 +60,15 @@ class Layout2Brick(LayoutBase):
 
         # 1. Partie Demi-Notes (Côté Piston)
         if nb_half > 0:
-            for i, (x, y, z, trigger_translation) in enumerate(CONFIG_HALF[:nb_half]):
-                if trigger_translation:
-                    self.translate(1, 0, 0)
-                    self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+            for i, (x, y, z, translation_amount) in enumerate(CONFIG_HALF[:nb_half]):
+                if translation_amount > 0:
+                    for _ in range(translation_amount):
+                        self.translate(1, 0, 0)
+                        self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
                 self.add_note_to_brick(self, x, y, z, notes_half[i])
 
-            self.translate(3, 0, 0)
+            self.translate(2, 0, 0) # User requested to change it from 3 to 2
             self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
             self.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
             self.translate(1, 0, 0)
@@ -168,14 +169,15 @@ class Layout2Track(Brick):
                 brick.rotate(1) # I, rot 1
 
             # Update coordinates for NEXT brick
+            # User request: "les espacementn des serpentins , ce pour les 4 cas. de 3 et pas de 2"
             if direction % 4 == 0:
-                pos[2] += -2
+                pos[2] += -3
             elif direction % 4 == 1:
-                pos[0] += 2
+                pos[0] += 3
             elif direction % 4 == 2:
-                pos[2] += 2
+                pos[2] += 3
             else:
-                pos[0] += 2
+                pos[0] += 3
 
             direction += 1
 

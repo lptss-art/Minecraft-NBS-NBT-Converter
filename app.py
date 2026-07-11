@@ -126,7 +126,6 @@ with tab2:
             f.write(uploaded_file_2.getbuffer())
 
         layout_type = st.selectbox("Select Structure Layout:", ["Layout2 (Compact Serpentine)", "Layout1 (Minecart)"])
-        branch_shape = st.selectbox("Forme des branches", ["I", "L"], help="Forme 'I' place des notes de chaque côté. Forme 'L' place les notes d'un seul côté.")
         export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"])
 
         st.subheader("Export Configuration")
@@ -151,8 +150,7 @@ with tab2:
         palettes = {
             "floor": selected_floor,
             "flowers": selected_flowers,
-            "ceiling": selected_ceiling,
-            "branch_shape": branch_shape
+            "ceiling": selected_ceiling
         }
 
         if st.button("Generate NBT"):
@@ -187,11 +185,11 @@ with tab2:
                     out_name = custom_out_name.lower().strip()
 
                     if export_mode == "Single Monolithic File":
-                        out_path = os.path.join(export_dir, f"{out_name}_complete.nbt")
+                        out_path = os.path.join(export_dir, f"{out_name}.nbt")
                         # Generator handles CustomNBT logic in export_monolithic now
                         generator.export_monolithic(out_path)
                         st.session_state.generated_nbt_path = out_path
-                        st.session_state.generated_nbt_name = f"{out_name}_complete.nbt"
+                        st.session_state.generated_nbt_name = f"{out_name}.nbt"
                         st.session_state.generated_nbt_mime = "application/octet-stream"
                         progress_bar.progress(100)
                         status_text.text("Finished!")
