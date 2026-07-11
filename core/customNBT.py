@@ -46,6 +46,18 @@ class CustomNBT:
         
     def write_file(self, filename):
         """Writes the NBT file to disk."""
+        # Calculate correct bounding box size before saving
+        max_x, max_y, max_z = 0, 0, 0
+        for block in self.nbtfile['blocks']:
+            pos = block['pos']
+            max_x = max(max_x, pos[0].value)
+            max_y = max(max_y, pos[1].value)
+            max_z = max(max_z, pos[2].value)
+
+        self.nbtfile["size"][0].value = max_x + 1
+        self.nbtfile["size"][1].value = max_y + 1
+        self.nbtfile["size"][2].value = max_z + 1
+
         self.nbtfile.write_file(filename)
         
     def add_palette(self, name, properties=None):
@@ -150,6 +162,7 @@ class CustomNBT:
         nbt_data['posX'] = TAG_Int(value=delta_x)
         nbt_data['posY'] = TAG_Int(value=delta_y)
         nbt_data['posZ'] = TAG_Int(value=delta_z)
+        nbt_data['id'] = TAG_String('minecraft:structure_block')
         block['nbt'] = nbt_data
                          
         self.nbtfile['blocks'].append(block)

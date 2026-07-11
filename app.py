@@ -258,6 +258,7 @@ with tab3:
         l1 = Layout1Brick()
         l1.build(notes_integer=make_notes(10), notes_half=make_notes(10), branch_shape='I')
         l1.clean("minecraft:stone")
+        l1.normalize()
         l1.write_nbt(nbt1)
         nbt1.write_file("output/debug/debug_layout1_shape_I.nbt")
         if CAN_VISUALIZE:
@@ -271,6 +272,7 @@ with tab3:
         l2 = Layout1Brick()
         l2.build(notes_integer=make_notes(10), notes_half=make_notes(10), branch_shape='L')
         l2.clean("minecraft:stone")
+        l2.normalize()
         l2.write_nbt(nbt2)
         nbt2.write_file("output/debug/debug_layout1_shape_L.nbt")
         if CAN_VISUALIZE:
@@ -284,6 +286,7 @@ with tab3:
         l3 = Layout2Brick()
         l3.build(notes_integer=make_notes(10), notes_half=make_notes(10), en_L=False)
         l3.clean("minecraft:stone")
+        l3.normalize()
         l3.write_nbt(nbt3)
         nbt3.write_file("output/debug/debug_layout2_shape_I.nbt")
         if CAN_VISUALIZE:
@@ -297,6 +300,7 @@ with tab3:
         l4 = Layout2Brick()
         l4.build(notes_integer=make_notes(10), notes_half=make_notes(10), en_L=True)
         l4.clean("minecraft:stone")
+        l4.normalize()
         l4.write_nbt(nbt4)
         nbt4.write_file("output/debug/debug_layout2_shape_L.nbt")
         if CAN_VISUALIZE:

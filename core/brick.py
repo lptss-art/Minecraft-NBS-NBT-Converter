@@ -27,6 +27,20 @@ class Brick:
 
         return (max_x * 2 + 1, max_y * 2 + 1, max_z * 2 + 1)
 
+    def normalize(self):
+        """
+        Translates all blocks so that the minimum x, y, and z coordinates are exactly 0.
+        This ensures the entire structure fits cleanly into a positive bounding box for NBT exports.
+        """
+        if not self.blocks:
+            return
+
+        min_x = min(b['pos'][0] for b in self.blocks)
+        min_y = min(b['pos'][1] for b in self.blocks)
+        min_z = min(b['pos'][2] for b in self.blocks)
+
+        self.translate(-min_x, -min_y, -min_z)
+
     @property
     def shape(self):
         return self.get_shape()
