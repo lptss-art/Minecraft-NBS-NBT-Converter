@@ -43,7 +43,8 @@ class StructureGenerator:
 
         self.global_data.clean(floor_block_name)
 
-        self.apply_decoration()
+        # Temporary debugging request: disable decorations
+        # self.apply_decoration()
 
     def apply_decoration(self):
         """Applies floor, ceiling, and random decorations to the generated structure based on palettes."""

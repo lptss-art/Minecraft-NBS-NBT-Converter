@@ -26,23 +26,22 @@ class Layout2Brick(LayoutBase):
 
         # Format : (x, y, z, amount_of_translation)
         CONFIG_HALF = [
-            (1,  0,  0, 0),
-            (0,  0, -1, 0),
-            (0,  0,  1, 0),
-            (1,  0,  0, 2), # User requested translate by 2
+            (0,  0,  0, 0),
+            (-1,  0, -1, 0),
+            (-1,  0,  1, 0),
+            (1,  0,  0, 1),
             (0, -1,  1, 0),
             (0, -1, -1, 0),
-            (0, -1,  1, 1), # Translate 1
+            (0, -1,  1, 1),
             (0, -1, -1, 0),
-            (0, -1,  1, 1), # Translate 1
+            (0, -1,  1, 1),
             (0, -1, -1, 0)
         ]
 
         CONFIG_INTEGER = [
             (0, (0, 0, 0), 0),
-            (2, (1, -1,  1), 0),
-            (3, (-1, -1,  1), 0),
-            (4, (1, 0,  0), 0)
+            (2, (1, -1,  -1), 0),
+            (3, (-1, -1,  -1), 0)
         ]
 
         CONFIG_INTEGER_PISTON = [
@@ -102,15 +101,17 @@ class Layout2Brick(LayoutBase):
         for idx, (x, y, z), _ in CONFIG_INTEGER:
             if idx == 0: continue
 
-            # Conditionally place note 4 if no half notes and <= 4 integer notes
-            if idx == 4:
-                if nb_half == 0 and nb_integer <= 5:
-                    if nb_integer > 4:
-                        self.add_note_to_brick(self, x, y, z, notes_integer[4])
-                continue
-
             if nb_integer > idx:
                 self.add_note_to_brick(self, x, y, z, notes_integer[idx])
+
+        # Conditionally place note 4 if no half notes and <= 4 integer notes
+        if nb_integer > 4:
+            if nb_half == 0 and nb_integer <= 5:
+                # en L c'est le second (0,0,1), sinon c'est le 1er (1,0,0)
+                if en_L:
+                    self.add_note_to_brick(self, 0, 0, 1, notes_integer[4])
+                else:
+                    self.add_note_to_brick(self, 1, 0, 0, notes_integer[4])
 
         # 5. Note 1 en fonction de L ou I (CONFIG_INTEGER_1)
         if nb_integer > 1:

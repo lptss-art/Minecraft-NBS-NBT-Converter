@@ -49,10 +49,27 @@ class CustomNBT:
         
     def write_file(self, filename):
         """Writes the NBT file to disk."""
-        # Calculate correct bounding box size before saving
+        if not self.nbtfile['blocks']:
+            self.nbtfile["size"][0].value = 1
+            self.nbtfile["size"][1].value = 1
+            self.nbtfile["size"][2].value = 1
+            self.nbtfile.write_file(filename)
+            return
+
+        # Calculate bounding box bounds
+        min_x = min(block['pos'][0].value for block in self.nbtfile['blocks'])
+        min_y = min(block['pos'][1].value for block in self.nbtfile['blocks'])
+        min_z = min(block['pos'][2].value for block in self.nbtfile['blocks'])
+
+        # Shift all blocks so they sit cleanly in positive space starting at 0
+        # This is necessary because Minecraft NBT structures cannot parse blocks placed at negative offsets.
         max_x, max_y, max_z = 0, 0, 0
         for block in self.nbtfile['blocks']:
             pos = block['pos']
+            pos[0].value -= min_x
+            pos[1].value -= min_y
+            pos[2].value -= min_z
+
             max_x = max(max_x, pos[0].value)
             max_y = max(max_y, pos[1].value)
             max_z = max(max_z, pos[2].value)
