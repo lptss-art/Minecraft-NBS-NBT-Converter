@@ -67,7 +67,7 @@ class Layout2Brick(LayoutBase):
 
                 self.add_note_to_brick(self, x, y, z, notes_half[i])
 
-            self.translate(2, 0, 0)
+            self.translate(3, 0, 0)
             self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
             self.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
             self.translate(1, 0, 0)
@@ -168,20 +168,14 @@ class Layout2Track(Brick):
                 brick.rotate(1) # I, rot 1
 
             # Update coordinates for NEXT brick
-            # The base center is now (0,0,0) with repeater at (-1,0,0) and previous block expected at (-2,0,0).
-            # The new connection logic relies purely on these built-in positions.
             if direction % 4 == 0:
-                pos[0] += 1
                 pos[2] += -2
             elif direction % 4 == 1:
                 pos[0] += 2
-                pos[2] += -1
             elif direction % 4 == 2:
-                pos[0] += 1
                 pos[2] += 2
             else:
                 pos[0] += 2
-                pos[2] += 1
 
             direction += 1
 

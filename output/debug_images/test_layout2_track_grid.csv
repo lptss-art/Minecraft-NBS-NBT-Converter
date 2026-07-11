@@ -1,36 +1,33 @@
-Z \ X,0,1,2,3,4,5,6,7,8,9
--6,,,"Y:-2 minecraft:stone
-Y:-1 minecraft:copper_block
-Y:0 minecraft:note_block",,,,,,,
--5,,,,,,,,,,
--4,,,Y:0 minecraft:redstone_block,,,,,,,
--3,,,Y:0 minecraft:sticky_piston,"Y:-1 minecraft:stone
-Y:0 minecraft:repeater","Y:-2 minecraft:stone
+Z \ X,0,1,2,3,4,5,6
+-7,,"Y:-2 minecraft:stone
 Y:-1 minecraft:copper_block
 Y:0 minecraft:note_block",,,,,
--2,,,Y:0 minecraft:oak_planks,"Y:-1 minecraft:stone
-Y:0 minecraft:redstone_wire","Y:-1 minecraft:stone
-Y:0 minecraft:redstone_wire","Y:-1 minecraft:stone
-Y:0 minecraft:repeater",,,"Y:-2 minecraft:stone
+-6,,,,,,,
+-5,,,,,,,
+-4,,Y:0 minecraft:redstone_block,,,,,
+-3,,Y:0 minecraft:sticky_piston,,,,,
+-2,,Y:0 minecraft:oak_planks,"Y:-1 minecraft:stone
+Y:0 minecraft:repeater","Y:-2 minecraft:stone
+Y:-1 minecraft:copper_block
+Y:0 minecraft:note_block",,"Y:-2 minecraft:stone
 Y:-1 minecraft:copper_block
 Y:0 minecraft:note_block","Y:-1 minecraft:stone
 Y:0 minecraft:redstone_wire"
 -1,,"Y:-1 minecraft:stone
-Y:0 minecraft:redstone_wire","Y:-1 minecraft:stone
-Y:0 minecraft:repeater",,,"Y:-2 minecraft:stone
-Y:-1 minecraft:copper_block
-Y:0 minecraft:note_block","Y:-1 minecraft:stone
-Y:0 minecraft:redstone_wire","Y:-1 minecraft:stone
-Y:0 minecraft:redstone_wire","Y:-1 minecraft:stone
+Y:0 minecraft:repeater",,"Y:-1 minecraft:stone
+Y:0 minecraft:repeater",,"Y:-1 minecraft:stone
 Y:0 minecraft:repeater",
 0,"Y:-1 minecraft:stone
 Y:0 minecraft:repeater","Y:-2 minecraft:stone
 Y:-1 minecraft:copper_block
-Y:0 minecraft:note_block",,,,,"Y:-1 minecraft:stone
-Y:0 minecraft:repeater",Y:0 minecraft:oak_planks,,
-1,,,,,,,,Y:0 minecraft:sticky_piston,,
-2,,,,,,,,Y:0 minecraft:redstone_block,,
-3,,,,,,,,,,
-4,,,,,,,,"Y:-2 minecraft:stone
+Y:0 minecraft:note_block",,"Y:-2 minecraft:stone
 Y:-1 minecraft:copper_block
-Y:0 minecraft:note_block",,
+Y:0 minecraft:note_block","Y:-1 minecraft:stone
+Y:0 minecraft:repeater",Y:0 minecraft:oak_planks,
+1,,,,,,Y:0 minecraft:sticky_piston,
+2,,,,,,Y:0 minecraft:redstone_block,
+3,,,,,,,
+4,,,,,,,
+5,,,,,,"Y:-2 minecraft:stone
+Y:-1 minecraft:copper_block
+Y:0 minecraft:note_block",
