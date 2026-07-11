@@ -32,11 +32,11 @@ def generate_test_blocks():
     l1.clean("minecraft:stone")
     l1.normalize()
     l1.write_nbt(nbt1)
-    nbt1.write_file("output/debug/debug_layout1_shape_I.nbt")
+    nbt1.write_file("output/debug/debug_layout1_shape_i.nbt")
     if CAN_VISUALIZE:
-        render_data_to_image(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 (Shape I)", "output/debug_images/debug_layout1_shape_I.png")
-        export_topdown_grid(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 (Shape I) Grid", "output/debug_images/debug_layout1_shape_I_grid.csv", "output/debug_images/debug_layout1_shape_I_grid.png")
-    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_shape_I")
+        render_data_to_image(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 (Shape I)", "output/debug_images/debug_layout1_shape_i.png")
+        export_topdown_grid(l1.blocks, nbt1.nbtfile['palette'], "Layout 1 (Shape I) Grid", "output/debug_images/debug_layout1_shape_i_grid.csv", "output/debug_images/debug_layout1_shape_i_grid.png")
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_shape_i")
     test_index += 1
 
     # Test 2: Layout 1 (Shape L)
@@ -46,11 +46,11 @@ def generate_test_blocks():
     l2.clean("minecraft:stone")
     l2.normalize()
     l2.write_nbt(nbt2)
-    nbt2.write_file("output/debug/debug_layout1_shape_L.nbt")
+    nbt2.write_file("output/debug/debug_layout1_shape_l.nbt")
     if CAN_VISUALIZE:
-        render_data_to_image(l2.blocks, nbt2.nbtfile['palette'], "Layout 1 (Shape L)", "output/debug_images/debug_layout1_shape_L.png")
-        export_topdown_grid(l2.blocks, nbt2.nbtfile['palette'], "Layout 1 (Shape L) Grid", "output/debug_images/debug_layout1_shape_L_grid.csv", "output/debug_images/debug_layout1_shape_L_grid.png")
-    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_shape_L")
+        render_data_to_image(l2.blocks, nbt2.nbtfile['palette'], "Layout 1 (Shape L)", "output/debug_images/debug_layout1_shape_l.png")
+        export_topdown_grid(l2.blocks, nbt2.nbtfile['palette'], "Layout 1 (Shape L) Grid", "output/debug_images/debug_layout1_shape_l_grid.csv", "output/debug_images/debug_layout1_shape_l_grid.png")
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_shape_l")
     test_index += 1
 
     # Test 3: Layout 2 (Shape I)
@@ -60,11 +60,11 @@ def generate_test_blocks():
     l3.clean("minecraft:stone")
     l3.normalize()
     l3.write_nbt(nbt3)
-    nbt3.write_file("output/debug/debug_layout2_shape_I.nbt")
+    nbt3.write_file("output/debug/debug_layout2_shape_i.nbt")
     if CAN_VISUALIZE:
-        render_data_to_image(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 (Shape I)", "output/debug_images/debug_layout2_shape_I.png")
-        export_topdown_grid(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 (Shape I) Grid", "output/debug_images/debug_layout2_shape_I_grid.csv", "output/debug_images/debug_layout2_shape_I_grid.png")
-    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_shape_I")
+        render_data_to_image(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 (Shape I)", "output/debug_images/debug_layout2_shape_i.png")
+        export_topdown_grid(l3.blocks, nbt3.nbtfile['palette'], "Layout 2 (Shape I) Grid", "output/debug_images/debug_layout2_shape_i_grid.csv", "output/debug_images/debug_layout2_shape_i_grid.png")
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_shape_i")
     test_index += 1
 
     # Test 4: Layout 2 (Shape L)
@@ -74,11 +74,11 @@ def generate_test_blocks():
     l4.clean("minecraft:stone")
     l4.normalize()
     l4.write_nbt(nbt4)
-    nbt4.write_file("output/debug/debug_layout2_shape_L.nbt")
+    nbt4.write_file("output/debug/debug_layout2_shape_l.nbt")
     if CAN_VISUALIZE:
-        render_data_to_image(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 (Shape L)", "output/debug_images/debug_layout2_shape_L.png")
-        export_topdown_grid(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 (Shape L) Grid", "output/debug_images/debug_layout2_shape_L_grid.csv", "output/debug_images/debug_layout2_shape_L_grid.png")
-    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_shape_L")
+        render_data_to_image(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 (Shape L)", "output/debug_images/debug_layout2_shape_l.png")
+        export_topdown_grid(l4.blocks, nbt4.nbtfile['palette'], "Layout 2 (Shape L) Grid", "output/debug_images/debug_layout2_shape_l_grid.csv", "output/debug_images/debug_layout2_shape_l_grid.png")
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout2_shape_l")
     test_index += 1
 
     # Test 5: Complete Serpentine Assembly

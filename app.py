@@ -175,7 +175,7 @@ with tab2:
                     progress_bar.progress(80)
 
                     status_text.text("Exporting NBT...")
-                    out_name = os.path.splitext(uploaded_file_2.name)[0]
+                    out_name = os.path.splitext(uploaded_file_2.name)[0].lower()
 
                     if not os.path.exists("output"):
                         os.makedirs("output")

@@ -105,6 +105,7 @@ class StructureGenerator:
     def export_multipart(self, output_dir, prefix="song_part", tick_delay=28):
         """Exports the structure as multiple mini-NBTs with Structure Blocks."""
         import os
+        prefix = prefix.lower()
         self.global_data.set_layers(5)
 
         # Determine number of layers
