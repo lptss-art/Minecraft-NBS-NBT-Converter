@@ -35,10 +35,12 @@ class Layout2Brick(LayoutBase):
             (1,  0,  0, False),
             (0,  0, -1, False),
             (0,  0,  1, False),
-            (1,  0,  0, True),   # Index 3 : Déclenche translate + redstone dust
+            (1,  0,  0, True),
             (0, -1,  1, False),
             (0, -1, -1, False),
-            (0, -1,  1, True),   # Index 6 : Déclenche translate + redstone dust
+            (0, -1,  1, True),
+            (0, -1, -1, False),
+            (0, -1,  1, True),
             (0, -1, -1, False)
         ]
 
@@ -77,9 +79,6 @@ class Layout2Brick(LayoutBase):
 
                 add_note_at(x, y, z, notes_half[i])
 
-            if nb_half >= 4:
-                cursor_x += 1
-
             cursor_x += 2
             add_at(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"})
             add_at(1, 0, 0, "minecraft:redstone_block")
@@ -87,16 +86,15 @@ class Layout2Brick(LayoutBase):
 
         # 2. Partie Notes Entières (Côté Piston)
         if nb_integer > 5 or (nb_integer > 4 and nb_half != 0):
-            offset = 1 if en_L else 0
             add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
 
             for idx, (x, y, z), trigger_translation in CONFIG_INTEGER_PISTON:
-                if nb_integer > (idx + offset):
+                if nb_integer > idx:
                     if trigger_translation:
                         cursor_x += 1
                         add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
 
-                    add_note_at(x, y, z, notes_integer[idx + offset])
+                    add_note_at(x, y, z, notes_integer[idx])
 
             cursor_x += 1
 
@@ -128,12 +126,13 @@ class Layout2Brick(LayoutBase):
         # 5. Note 1 en fonction de L ou I (CONFIG_INTEGER_1)
         if nb_integer > 1:
             if en_L:
-                self.add_note_to_brick(self, 0, 0, -1, notes_integer[1])
+                self.add_note_to_brick(self, 1, 0, 0, notes_integer[1])
             else:
                 self.add_note_to_brick(self, 0, 0, 1, notes_integer[1])
 
         # 6. Finitions Alimentation Redstone
         self.add_block(-1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
+        self.add_block(0, 0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
 class Layout2Track(Brick):
     """
@@ -163,22 +162,22 @@ class Layout2Track(Brick):
             # Position of this brick in the track
             brick.position = [pos[0], pos[1], pos[2]]
 
-            # Alternating en_L logic based on serpentine placement
-            en_L = (direction % 2 == 1)
+            # Alternating en_L logic based on serpentine placement (%4=0: L, %4=1: I, %4=2: L, %4=3: I)
+            en_L = (direction % 2 == 0)
 
             # Build natively
             brick.build(notes_entier, notes_demi, delay=actual_delay, en_L=en_L)
 
-            # Align serpentine
+            # Align serpentine according to user instructions
             if direction % 4 == 0:
-                pass # Straight +X
+                pass # L
             elif direction % 4 == 1:
                 brick.flip(axis='z')
-                brick.rotate(3)
+                brick.rotate(3) # I, flip, rot 3
             elif direction % 4 == 2:
-                brick.flip(axis='z')
+                brick.flip(axis='z') # L, flip
             else:
-                brick.rotate(1)
+                brick.rotate(1) # I, rot 1
 
             # Update coordinates for NEXT brick
             # The base center is now (0,0,0) with repeater at (-1,0,0) and previous block expected at (-2,0,0).
