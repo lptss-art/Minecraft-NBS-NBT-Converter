@@ -68,7 +68,7 @@ class Layout2Brick(LayoutBase):
 
                 self.add_note_to_brick(self, x, y, z, notes_half[i])
 
-            self.translate(2, 0, 0) # User requested to change it from 3 to 2
+            self.translate(3, 0, 0) # User requested to change it from 2 back to 3
             self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
             self.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
             self.translate(1, 0, 0)

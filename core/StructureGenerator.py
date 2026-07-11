@@ -45,9 +45,6 @@ class StructureGenerator:
 
         self.apply_decoration()
 
-        # Center the coordinates of the structure to >= 0
-        self.global_data.normalize()
-
     def apply_decoration(self):
         """Applies floor, ceiling, and random decorations to the generated structure based on palettes."""
         if not self.palettes or not any(self.palettes.values()):
@@ -138,7 +135,6 @@ class StructureGenerator:
 
         # Export individual layer parts
         for i, layout in enumerate(layouts):
-            layout.normalize() # Ensure internal layers are safely bounded
             nbt_part = CustomNBT()
             layout.write_nbt(nbt_part)
             nbt_part.write_file(os.path.join(output_dir, f"{prefix}_{i}.nbt"))
