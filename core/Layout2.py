@@ -10,144 +10,125 @@ class Layout2Brick(LayoutBase):
     def __init__(self, x=0, y=0, z=0, facing='south', direction=-1):
         super().__init__(x=x, y=y, z=z, facing=facing, direction=direction)
         
-    def build(self, notes_integer=None, notes_half=None, delay=1, branch_shape='I'):
+    def build(self, notes_integer=None, notes_half=None, delay=1, en_L=False):
         """
-        Adds a segment of the song (one or more ticks) to the layout.
-
-        Args:
-            notes_integer (list): List of notes on integer ticks.
-            notes_half (list): List of notes on half ticks (requiring pistons).
+        Adds a segment of the song (one or more ticks) to the layout using the flat unified logic.
         """
-        integer_note_count = 0
-        half_note_count = 0
+        notes_integer = notes_integer or []
+        notes_half = notes_half or []
+        nb_integer, nb_half = len(notes_integer), len(notes_half)
 
-        if notes_integer is not None:
-            integer_note_count = len(notes_integer)
-        if notes_half is not None:
-            half_note_count = len(notes_half)
-
+        # We apply blocks directly to a sub-brick first so we can manipulate it before the final merge
         brick_int = Brick()
-        brick_half = Brick()
 
-        # Central logic
-        # Repeater connecting to the previous block (now positioned within the brick_int itself)
-        brick_int.add_block(0, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
+        # We define a cursor that acts like self.translate
+        cursor_x, cursor_y, cursor_z = 0, 0, 0
 
-        # The connecting redstone wire for the serpentine pattern
-        # Since the serpentine ALWAYS connects to the back via [1,0,-1], we MUST put a redstone wire here
-        # or the repeater won't turn the corner.
-        brick_int.add_block(1, 0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+        def add_at(x, y, z, block_name, properties=None, needs_down=False):
+            brick_int.add_block(cursor_x + x, cursor_y + y, cursor_z + z, block_name, properties, tick=self.tick, needs_down=needs_down)
 
-        if integer_note_count == 0:
-            brick_int.add_block(1, 0, 0, "minecraft:oak_planks")
+        def add_note_at(x, y, z, note):
+            self.add_note_to_brick(brick_int, cursor_x + x, cursor_y + y, cursor_z + z, note)
+
+        # =========================================================================
+        # CONFIGURATIONS DES COORDONNÉES
+        # =========================================================================
+
+        # Format : (x, y, z, declenche_translation_et_blocs)
+        CONFIG_HALF = [
+            (1,  0,  0, False),
+            (0,  0, -1, False),
+            (0,  0,  1, False),
+            (1,  0,  0, True),   # Index 3 : Déclenche translate + blocs de support
+            (0, -1,  1, False),
+            (0, -1, -1, False),
+            (0, -1,  1, True),   # Index 6 : Déclenche translate + blocs de support
+            (0, -1, -1, False)
+        ]
+
+        # Format : (index_relatif_note, (x, y, z), declenche_translation)
+        CONFIG_INTEGER_PISTON = [
+            (3, (0, -1, -1), False),
+            (4, (0, -1,  1), False),
+            (5, (0, -1, -1), True),  # Index 5 : Déclenche translate + blocs
+            (6, (0, -1,  1), False),
+            (7, (0, -1, -1), True),  # Index 7 : Déclenche translate + blocs
+            (8, (0, -1,  1), False)
+        ]
+
+        # Évaluation des cas pour les notes côté redstone
+        case_1 = (nb_half == 0 and nb_integer <= 5)
+        case_2 = (nb_half == 1 and nb_integer <= 4)
+
+        # Renvoie les coordonnées (x, y, z) dynamiquement selon l'état du circuit
+        CONFIG_REDSTONE = {
+            1: lambda: (1, 0, 1) if (case_1 or not en_L) else (2, 0, 0),
+            2: lambda: (0, -1, -1),
+            3: lambda: (0, -1, -1) if case_1 else ((2, -1, -1) if (case_2 or en_L) else None),
+            4: lambda: (2, -1, -1) if case_1 else None
+        }
+
+        # =========================================================================
+        # LOGIQUE D'EXÉCUTION
+        # =========================================================================
+
+        # 1. Partie Demi-Notes (Côté Piston)
+        if nb_half > 0:
+            for i, (x, y, z, trigger_translation) in enumerate(CONFIG_HALF[:nb_half]):
+                if trigger_translation:
+                    cursor_x += 1
+                    add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
+
+                add_note_at(x, y, z, notes_half[i])
+
+            if nb_half >= 4:
+                cursor_x += 1
+
+            cursor_x += 2
+            add_at(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"})
+            add_at(1, 0, 0, "minecraft:redstone_block")
+            cursor_x += 1
+
+        # 2. Partie Notes Entières (Côté Piston)
+        if nb_integer > 5 or (nb_integer > 4 and nb_half != 0):
+            offset = 1 if en_L else 0
+            add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
+
+            for idx, (x, y, z), trigger_translation in CONFIG_INTEGER_PISTON:
+                if nb_integer >= (idx + 1 + offset):
+                    if trigger_translation:
+                        cursor_x += 1
+                        add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
+
+                    add_note_at(x, y, z, notes_integer[idx + offset])
+
+            cursor_x += 1
+
+        # 3. Rotation & Centre (L'intention de "en_L" prend tout son sens ici)
+        if en_L:
+            brick_int.rotate(1)
+
+        brick_int.translate(1, 0, 0)
+
+        if nb_integer == 0:
+            # We use oak planks for the center block as standard
+            brick_int.add_block(1, 0, 0, "minecraft:oak_planks", tick=self.tick)
         else:
             self.add_note_to_brick(brick_int, 1, 0, 0, notes_integer[0])
 
-        if branch_shape == 'I':
-            # "I" Shape (Symmetrical): Notes placed on both +z and -z
-            if half_note_count == 0 and integer_note_count <= 5:
-                if integer_note_count >= 2:
-                    self.add_note_to_brick(brick_int, 1, 0, 1, notes_integer[1])
-                if integer_note_count >= 3:
-                    self.add_note_to_brick(brick_int, 2, 0, 0, notes_integer[2])
-                if integer_note_count >= 4:
-                    self.add_note_to_brick(brick_int, 0, -1, -1, notes_integer[3])
-                if integer_note_count >= 5:
-                    self.add_note_to_brick(brick_int, 2, -1, -1, notes_integer[4])
+        # 4. Notes Côté Redstone
+        for idx in range(1, 5):
+            if nb_integer >= idx + 1 and idx in CONFIG_REDSTONE:
+                coords = CONFIG_REDSTONE[idx]()
+                if coords:
+                    self.add_note_to_brick(brick_int, *coords, notes_integer[idx])
 
-            elif half_note_count == 1 and integer_note_count <= 4:
-                if integer_note_count >= 2:
-                    self.add_note_to_brick(brick_int, 1, 0, 1, notes_integer[1])
-                if integer_note_count >= 3:
-                    self.add_note_to_brick(brick_int, 0, -1, -1, notes_integer[2])
-                if integer_note_count >= 4:
-                    self.add_note_to_brick(brick_int, 2, -1, -1, notes_integer[3])
-            else:
-                if integer_note_count >= 2:
-                    self.add_note_to_brick(brick_int, 1, 0, 1, notes_integer[1])
-                if integer_note_count >= 3:
-                    self.add_note_to_brick(brick_int, 0, -1, -1, notes_integer[2])
-        else:
-            # "L" Shape: Notes placed ONLY on the +z side
-            if integer_note_count > 1 or half_note_count > 0:
-                brick_int.add_block(1, 0, 1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+        # 5. Finitions Alimentation Redstone
+        brick_int.add_block(0,  0,  0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
 
-            if integer_note_count >= 2:
-                self.add_note_to_brick(brick_int, 2, 0, 0, notes_integer[1])
-            if integer_note_count >= 3:
-                self.add_note_to_brick(brick_int, 0, -1, 1, notes_integer[2])
-            if integer_note_count >= 4:
-                self.add_note_to_brick(brick_int, 2, -1, 1, notes_integer[3])
-
-        # Piston side logic (half ticks) - rotated parts
-        sub_brick_half = Brick()
-
-        if notes_half is not None:
-            if half_note_count >= 1:
-                self.add_note_to_brick(sub_brick_half, 1, 0, 0, notes_half[0])
-            if half_note_count >= 2:
-                self.add_note_to_brick(sub_brick_half, 0, 0, -1, notes_half[1])
-            if half_note_count >= 3:
-                self.add_note_to_brick(sub_brick_half, 0, 0, 1, notes_half[2])
-            if half_note_count >= 4:
-                sub_brick_half.translate(1, 0, 0)
-                sub_brick_half.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                self.add_note_to_brick(sub_brick_half, 1, 0, 0, notes_half[3])
-            if half_note_count >= 5:
-                self.add_note_to_brick(sub_brick_half, 0, -1, 1, notes_half[4])
-            if half_note_count >= 6:
-                self.add_note_to_brick(sub_brick_half, 0, -1, -1, notes_half[5])
-            if half_note_count >= 7:
-                sub_brick_half.translate(1, 0, 0)
-                sub_brick_half.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                self.add_note_to_brick(sub_brick_half, 0, -1, 1, notes_half[6])
-            if half_note_count >= 8:
-                self.add_note_to_brick(sub_brick_half, 0, -1, -1, notes_half[7])
-                
-            if half_note_count >= 4:
-                sub_brick_half.translate(1, 0, 0)
-
-            sub_brick_half.translate(2, 0, 0)
-            sub_brick_half.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
-            sub_brick_half.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
-            
-            sub_brick_half.translate(1, 0, 0)
-
-        # Integer tick overflow notes
-        if integer_note_count > 5 or (integer_note_count > 4 and half_note_count != 0):
-
-            sub_brick_half.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-
-            if integer_note_count >= 4:
-                self.add_note_to_brick(sub_brick_half, 0, -1, -1, notes_integer[3])
-            if integer_note_count >= 5:
-                self.add_note_to_brick(sub_brick_half, 0, -1, 1, notes_integer[4])
-
-            if integer_note_count >= 6:
-                sub_brick_half.translate(1, 0, 0)
-                sub_brick_half.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                self.add_note_to_brick(sub_brick_half, 0, -1, -1, notes_integer[5])
-            if integer_note_count >= 7:
-                self.add_note_to_brick(sub_brick_half, 0, -1, 1, notes_integer[6])
-             
-            if integer_note_count >= 8:
-                sub_brick_half.translate(1, 0, 0)
-                sub_brick_half.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                self.add_note_to_brick(sub_brick_half, 0, -1, -1, notes_integer[7])
-            if integer_note_count >= 9:
-                self.add_note_to_brick(sub_brick_half, 0, -1, 1, notes_integer[8])
-            
-            sub_brick_half.translate(1, 0, 0)
-
-        sub_brick_half.translate(1, 0, 0)
-
-        if branch_shape == 'L':
-            sub_brick_half.flip(axis='z')
-
-        brick_half.add_data(sub_brick_half)
+        brick_int.add_block(1,  0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
         self.add_data(brick_int)
-        self.add_data(brick_half)
 
 class Layout2Track(Brick):
     """
@@ -177,24 +158,34 @@ class Layout2Track(Brick):
             # Position of this brick in the track
             brick.position = [pos[0], pos[1], pos[2]]
 
-            # Serpentine logic
-            # Repeater is now built-in inside brick_int based on the delay provided
-            brick.build(notes_entier, notes_demi, delay=actual_delay, branch_shape=self.branch_shape)
+            # Alternating en_L logic based on serpentine placement
+            en_L = (direction % 2 == 1)
 
+            # Build natively
+            brick.build(notes_entier, notes_demi, delay=actual_delay, en_L=en_L)
+
+            # Align serpentine
+            if direction % 4 == 0:
+                pass # Straight +X
+            elif direction % 4 == 1:
+                brick.flip(axis='z')
+                brick.rotate(3)
+            elif direction % 4 == 2:
+                brick.flip(axis='z')
+            else:
+                brick.rotate(1)
+
+            # Update coordinates for NEXT brick
             if direction % 4 == 0:
                 pos[0] += 1
                 pos[2] += -2
             elif direction % 4 == 1:
-                brick.flip(axis='z')
-                brick.rotate(3) # -1 is 3 in mod 4
                 pos[0] += 2
                 pos[2] += -1
             elif direction % 4 == 2:
-                brick.flip(axis='z') # Just flip z, do not flip x (original behavior)
                 pos[0] += 1
                 pos[2] += 2
             else:
-                brick.rotate(1)
                 pos[0] += 2
                 pos[2] += 1
 
