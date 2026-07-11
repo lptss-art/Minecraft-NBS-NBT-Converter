@@ -18,14 +18,7 @@ class Layout2Brick(LayoutBase):
         notes_half = notes_half or []
         nb_integer, nb_half = len(notes_integer), len(notes_half)
 
-        # We apply blocks directly to self. Using cursor_x to emulate translations safely
-        cursor_x, cursor_y, cursor_z = 0, 0, 0
-
-        def add_at(x, y, z, block_name, properties=None, needs_down=False):
-            self.add_block(cursor_x + x, cursor_y + y, cursor_z + z, block_name, properties, tick=self.tick, needs_down=needs_down)
-
-        def add_note_at(x, y, z, note):
-            self.add_note_to_brick(self, cursor_x + x, cursor_y + y, cursor_z + z, note)
+        # We apply blocks directly to self, using built-in translation to shift coordinates natively.
 
         # =========================================================================
         # CONFIGURATIONS DES COORDONNÉES
@@ -51,11 +44,6 @@ class Layout2Brick(LayoutBase):
             (4, (1, 0,  0), False) #le 4 sera posé si pas posé si demi notes ou si plus de 4 notes entières
         ]
 
-        CONFIG_INTEGER_1 = [
-            ("L", (0, 0,  -1)),
-            ("I", (0, 0,  1))
-        ]
-
         # Format : (index_relatif_note, (x, y, z), declenche_translation)
         CONFIG_INTEGER_PISTON = [
             (4, (0, -1, -1), True),
@@ -74,29 +62,29 @@ class Layout2Brick(LayoutBase):
         if nb_half > 0:
             for i, (x, y, z, trigger_translation) in enumerate(CONFIG_HALF[:nb_half]):
                 if trigger_translation:
-                    cursor_x += 1
-                    add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
+                    self.translate(1, 0, 0)
+                    self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
-                add_note_at(x, y, z, notes_half[i])
+                self.add_note_to_brick(self, x, y, z, notes_half[i])
 
-            cursor_x += 2
-            add_at(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"})
-            add_at(1, 0, 0, "minecraft:redstone_block")
-            cursor_x += 1
+            self.translate(2, 0, 0)
+            self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
+            self.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
+            self.translate(1, 0, 0)
 
         # 2. Partie Notes Entières (Côté Piston)
         if nb_integer > 5 or (nb_integer > 4 and nb_half != 0):
-            add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
+            self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
             for idx, (x, y, z), trigger_translation in CONFIG_INTEGER_PISTON:
                 if nb_integer > idx:
                     if trigger_translation:
-                        cursor_x += 1
-                        add_at(0,  0, 0, "minecraft:redstone_wire", needs_down=True)
+                        self.translate(1, 0, 0)
+                        self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
-                    add_note_at(x, y, z, notes_integer[idx])
+                    self.add_note_to_brick(self, x, y, z, notes_integer[idx])
 
-            cursor_x += 1
+            self.translate(1, 0, 0)
 
         # 3. Rotation si L (affecte tout ce qui a été construit jusqu'à présent)
         if en_L:

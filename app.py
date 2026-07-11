@@ -129,6 +129,11 @@ with tab2:
         branch_shape = st.selectbox("Forme des branches", ["I", "L"], help="Forme 'I' place des notes de chaque côté. Forme 'L' place les notes d'un seul côté.")
         export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"])
 
+        st.subheader("Export Configuration")
+        from core.config import get_export_dir, update_export_dir
+        export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
+        custom_out_name = st.text_input("Output File Name (without .nbt)", value=os.path.splitext(uploaded_file_2.name)[0].lower())
+
         st.subheader("Decoration Palette")
 
         col1, col2, col3 = st.columns(3)
@@ -151,6 +156,10 @@ with tab2:
         }
 
         if st.button("Generate NBT"):
+            # Update config file
+            update_export_dir(export_dir_input)
+            export_dir = get_export_dir()
+
             progress_bar = st.progress(0)
             status_text = st.empty()
 
@@ -175,13 +184,10 @@ with tab2:
                     progress_bar.progress(80)
 
                     status_text.text("Exporting NBT...")
-                    out_name = os.path.splitext(uploaded_file_2.name)[0].lower()
-
-                    if not os.path.exists("output"):
-                        os.makedirs("output")
+                    out_name = custom_out_name.lower().strip()
 
                     if export_mode == "Single Monolithic File":
-                        out_path = f"output/{out_name}_complete.nbt"
+                        out_path = os.path.join(export_dir, f"{out_name}_complete.nbt")
                         # Generator handles CustomNBT logic in export_monolithic now
                         generator.export_monolithic(out_path)
                         st.session_state.generated_nbt_path = out_path
@@ -190,14 +196,14 @@ with tab2:
                         progress_bar.progress(100)
                         status_text.text("Finished!")
                     else:
-                        out_dir = f"output/{out_name}_parts"
+                        out_dir = os.path.join(export_dir, f"{out_name}_parts")
                         if os.path.exists(out_dir):
                             shutil.rmtree(out_dir)
                         os.makedirs(out_dir, exist_ok=True)
-                        generator.export_multipart(out_dir)
+                        generator.export_multipart(out_dir, prefix=out_name)
 
                         # Zip the directory
-                        zip_path = f"output/{out_name}_parts.zip"
+                        zip_path = os.path.join(export_dir, f"{out_name}_parts.zip")
                         shutil.make_archive(zip_path.replace('.zip', ''), 'zip', out_dir)
 
                         st.session_state.generated_nbt_path = zip_path
