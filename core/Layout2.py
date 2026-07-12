@@ -29,13 +29,13 @@ class Layout2Brick(LayoutBase):
             (0,  0,  0, 0),
             (-1,  0, -1, 0),
             (-1,  0,  1, 0),
-            (1,  0,  0, 1),
-            (0, -1,  1, 0),
-            (0, -1, -1, 0),
-            (0, -1,  1, 1),
-            (0, -1, -1, 0),
-            (0, -1,  1, 1),
-            (0, -1, -1, 0)
+            (1,  0,  0, 2),
+            (0, 0,  1, 0),
+            (0, 0, -1, 0),
+            (0, 0,  1, 1),
+            (0, 0, -1, 0),
+            (0, 0,  1, 1),
+            (0, 0, -1, 0)
         ]
 
         CONFIG_INTEGER_base = [ # use when <= 5 intiers et si pas de demi note
@@ -97,9 +97,7 @@ class Layout2Brick(LayoutBase):
             self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
 
         # 2. Partie Notes Entières (Côté Piston)
-        if nb_integer > 5 or (nb_integer > 4 and nb_half != 0):
-            self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-
+        if nb_integer > 5 or nb_half != 0:
             suite_config = CONFIG_INTEGER_suite_L if en_L else CONFIG_INTEGER_suite_I
             for idx, (x, y, z), trigger_translation in suite_config:
                 if nb_integer > idx:
