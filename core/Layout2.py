@@ -30,12 +30,12 @@ class Layout2Brick(LayoutBase):
             (-1,  0, -1, 0),
             (-1,  0,  1, 0),
             (1,  0,  0, 2),
-            (0, 0,  1, 0),
-            (0, 0, -1, 0),
-            (0, 0,  1, 1),
-            (0, 0, -1, 0),
-            (0, 0,  1, 1),
-            (0, 0, -1, 0)
+            (0, -1,  1, 0),
+            (0, -1, -1, 0),
+            (0, -1,  1, 1),
+            (0, -1, -1, 0),
+            (0, -1,  1, 1),
+            (0, -1, -1, 0)
         ]
 
         CONFIG_INTEGER_base = [ # use when <= 5 intiers et si pas de demi note
@@ -128,13 +128,6 @@ class Layout2Brick(LayoutBase):
         for idx, (x, y, z), _ in base_config:
             if nb_integer > idx:
                 self.add_note_to_brick(self, x, y, z, notes_integer[idx])
-
-        # 5. Note 1 en fonction de L ou I (CONFIG_INTEGER_1)
-        if nb_integer > 1:
-            if en_L:
-                self.add_note_to_brick(self, 0, 0, -1, notes_integer[1])
-            else:
-                self.add_note_to_brick(self, 0, 0, 1, notes_integer[1])
 
         # 6. Finitions Alimentation Redstone
         self.add_block(-1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
