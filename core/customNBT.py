@@ -6,7 +6,7 @@ class CustomNBT:
     """
 
     minecraft_instruments = {
-        "Piano": "minecraft:copper_block",
+        "Piano": "minecraft:air",
         "Double Bass": "minecraft:oak_planks",
         "Bass Drum": "minecraft:stone",
         "Snare Drum": "minecraft:sand",
