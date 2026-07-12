@@ -87,7 +87,7 @@ class Layout2Brick(LayoutBase):
                 if translation_amount > 0:
                     for _ in range(translation_amount):
                         self.translate(1, 0, 0)
-                        self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                        self.add_block(0,  0, 0, "minecraft:redstone_wire", {"north": "side", "east": "side", "south": "side", "west": "side"},tick=self.tick, needs_down=True)
 
                 self.add_note_to_brick(self, x, y, z, notes_half[i])
 
@@ -103,7 +103,7 @@ class Layout2Brick(LayoutBase):
                 if nb_integer > idx:
                     if trigger_translation > 0:
                         self.translate(1, 0, 0)
-                        self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                        self.add_block(0,  0, 0, "minecraft:redstone_wire", {"north": "side", "east": "side", "south": "side", "west": "side"},tick=self.tick, needs_down=True)
 
                     self.add_note_to_brick(self, x, y, z, notes_integer[idx])
 
@@ -131,7 +131,7 @@ class Layout2Brick(LayoutBase):
 
         # 6. Finitions Alimentation Redstone
         self.add_block(-1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
-        self.add_block(0, 0, -1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+        self.add_block(0, 0, -1, "minecraft:redstone_wire", {"north": "side", "east": "side", "south": "side", "west": "side"},tick=self.tick, needs_down=True)
 
 class Layout2Track(Brick):
     """
