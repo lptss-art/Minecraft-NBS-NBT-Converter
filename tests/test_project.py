@@ -31,23 +31,23 @@ class TestBrickClass(unittest.TestCase):
         data = Brick()
 
         # Add block
-        data.add_block(0, 0, 0, 1)
+        data.add_block(0, 0, 0, "minecraft:stone")
         self.assertEqual(len(data.blocks), 1)
-        self.assertEqual(data.blocks[0]['index'], 1)
+        self.assertEqual(data.blocks[0]['block_name'], "minecraft:stone")
         self.assertEqual(data.blocks[0]['pos'], [0, 0, 0])
 
         # Add another block at same position
-        data.add_block(0, 0, 0, 2)
+        data.add_block(0, 0, 0, "minecraft:dirt")
         self.assertEqual(len(data.blocks), 2)
 
         # Clean should keep the second one
         data.clean()
         self.assertEqual(len(data.blocks), 1)
-        self.assertEqual(data.blocks[0]['index'], 2)
+        self.assertEqual(data.blocks[0]['block_name'], "minecraft:dirt")
 
     def test_set_layers(self):
         data = Brick()
-        data.add_block(0, 0, 0, 1, tick=10, random_delay_range=5)
+        data.add_block(0, 0, 0, "minecraft:stone", tick=10, random_delay_range=5)
         data.set_layers(default_random_amount=5)
         # Layer should be set based on tick and random
         # Layer = tick - rand(0, 5) => 10 - [0,5] => [5, 10]
@@ -58,7 +58,8 @@ class TestCustomNBT(unittest.TestCase):
     def test_initialization(self):
         nbt = CustomNBT()
         self.assertIsNotNone(nbt.nbtfile)
-        self.assertTrue(len(nbt.nbtfile['palette']) > 0)
+        # Palette is now initially empty, populated lazily
+        self.assertEqual(len(nbt.nbtfile['palette']), 0)
 
     def test_get_index(self):
         nbt = CustomNBT()
@@ -80,8 +81,7 @@ class TestCustomNBT(unittest.TestCase):
 
 class TestLayout1(unittest.TestCase):
     def test_add_notes(self):
-        nbt = CustomNBT()
-        layout = Layout1Brick(nbt=nbt)
+        layout = Layout1Brick()
 
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
@@ -92,9 +92,9 @@ class TestLayout1(unittest.TestCase):
         self.assertTrue(len(layout.blocks) > 0)
 
         if CAN_VISUALIZE:
-            # We must apply clean() with a floor to resolve needs_down like in the real app
-            floor_idx = nbt.get_index_safe("minecraft:stone")
-            layout.clean(floor_idx)
+            nbt = CustomNBT()
+            layout.clean("minecraft:stone")
+            layout.write_nbt(nbt)
 
             render_data_to_image(
                 layout.blocks,
@@ -112,17 +112,16 @@ class TestLayout1(unittest.TestCase):
 
     def test_write_nbt(self):
         nbt = CustomNBT()
-        layout = Layout1Brick(nbt=nbt)
-        layout.add_block(0, 0, 0, 1)
+        layout = Layout1Brick()
+        layout.add_block(0, 0, 0, "minecraft:stone")
 
         initial_blocks = len(nbt.nbtfile['blocks'])
-        layout.write_nbt()
+        layout.write_nbt(nbt)
         self.assertTrue(len(nbt.nbtfile['blocks']) > initial_blocks)
 
 class TestTrackAssembly(unittest.TestCase):
     def test_layout1_track_assembly(self):
-        nbt = CustomNBT()
-        track = Layout1Track(nbt_template=nbt)
+        track = Layout1Track()
 
         # Simulate df_notes
         data = {
@@ -135,8 +134,9 @@ class TestTrackAssembly(unittest.TestCase):
         self.assertTrue(len(track.blocks) > 0)
 
         if CAN_VISUALIZE:
-            floor_idx = nbt.get_index_safe("minecraft:stone")
-            track.clean(floor_idx)
+            nbt = CustomNBT()
+            track.clean("minecraft:stone")
+            track.write_nbt(nbt)
 
             render_data_to_image(
                 track.blocks,
@@ -153,8 +153,7 @@ class TestTrackAssembly(unittest.TestCase):
             )
 
     def test_layout2_track_assembly(self):
-        nbt = CustomNBT()
-        track = Layout2Track(nbt_template=nbt)
+        track = Layout2Track()
 
         # Simulate df_notes sequence long enough to see the snake turn
         data = {
@@ -167,8 +166,9 @@ class TestTrackAssembly(unittest.TestCase):
         self.assertTrue(len(track.blocks) > 0)
 
         if CAN_VISUALIZE:
-            floor_idx = nbt.get_index_safe("minecraft:stone")
-            track.clean(floor_idx)
+            nbt = CustomNBT()
+            track.clean("minecraft:stone")
+            track.write_nbt(nbt)
 
             render_data_to_image(
                 track.blocks,
@@ -186,8 +186,7 @@ class TestTrackAssembly(unittest.TestCase):
 
 class TestLayout2(unittest.TestCase):
     def test_add_notes(self):
-        nbt = CustomNBT()
-        layout = Layout2Brick(nbt=nbt)
+        layout = Layout2Brick()
 
         notes_int = [Note(1, 0), Note(5, 0)]
         notes_half = [Note(3, 0)]
@@ -198,8 +197,9 @@ class TestLayout2(unittest.TestCase):
         self.assertTrue(len(layout.blocks) > 0)
 
         if CAN_VISUALIZE:
-            floor_idx = nbt.get_index_safe("minecraft:stone")
-            layout.clean(floor_idx)
+            nbt = CustomNBT()
+            layout.clean("minecraft:stone")
+            layout.write_nbt(nbt)
 
             render_data_to_image(
                 layout.blocks,
@@ -217,11 +217,11 @@ class TestLayout2(unittest.TestCase):
 
     def test_write_nbt(self):
         nbt = CustomNBT()
-        layout = Layout2Brick(nbt=nbt)
-        layout.add_block(0, 0, 0, 1)
+        layout = Layout2Brick()
+        layout.add_block(0, 0, 0, "minecraft:stone")
 
         initial_blocks = len(nbt.nbtfile['blocks'])
-        layout.write_nbt()
+        layout.write_nbt(nbt)
         self.assertTrue(len(nbt.nbtfile['blocks']) > initial_blocks)
 
 class TestMusicData(unittest.TestCase):

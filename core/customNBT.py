@@ -6,7 +6,7 @@ class CustomNBT:
     """
 
     minecraft_instruments = {
-        "Piano": "minecraft:copper_block",
+        "Piano": "minecraft:air",
         "Double Bass": "minecraft:oak_planks",
         "Bass Drum": "minecraft:stone",
         "Snare Drum": "minecraft:sand",
@@ -24,26 +24,17 @@ class CustomNBT:
         "Pling": "minecraft:glowstone"
     }
 
-    index_instr = -1
-    index_notes = -1
-    index_repeaters = -1
-    index_pistons = -1
-    
-    custom_index = {}
-    named_index = {}
-    
     def __init__(self):
         self.custom_index = {}
         self.named_index = {}
         self.init_nbt()
-        self.add_palette_note()
-        self.add_palette_instr()
-        self.add_repeaters()
-        self.add_pistons()
 
     def init_nbt(self):
         """Initializes the NBT file structure."""
         self.nbtfile = NBTFile()
+
+        # Add DataVersion for Minecraft compatibility
+        self.nbtfile["DataVersion"] = TAG_Int(3465) # Minecraft 1.20
 
         # size (dummy values initially)
         self.nbtfile["size"] = TAG_List(TAG_Int)
@@ -58,6 +49,27 @@ class CustomNBT:
         
     def write_file(self, filename):
         """Writes the NBT file to disk."""
+        if not self.nbtfile['blocks']:
+            self.nbtfile["size"][0].value = 1
+            self.nbtfile["size"][1].value = 1
+            self.nbtfile["size"][2].value = 1
+            self.nbtfile.write_file(filename)
+            return
+
+        # Calculate bounding box bounds
+        min_x = min(block['pos'][0].value for block in self.nbtfile['blocks'])
+        min_y = min(block['pos'][1].value for block in self.nbtfile['blocks'])
+        min_z = min(block['pos'][2].value for block in self.nbtfile['blocks'])
+
+        max_x = max(block['pos'][0].value for block in self.nbtfile['blocks'])
+        max_y = max(block['pos'][1].value for block in self.nbtfile['blocks'])
+        max_z = max(block['pos'][2].value for block in self.nbtfile['blocks'])
+
+        # Clamp dimensions to a maximum of 31 to prevent Minecraft load limits
+        self.nbtfile["size"][0].value = min(31, max_x - min_x + 1)
+        self.nbtfile["size"][1].value = min(31, max_y - min_y + 1)
+        self.nbtfile["size"][2].value = min(31, max_z - min_z + 1)
+
         self.nbtfile.write_file(filename)
         
     def add_palette(self, name, properties=None):
@@ -65,7 +77,7 @@ class CustomNBT:
         palette_entry = TAG_Compound()
         palette_entry['Name'] = TAG_String(name)
 
-        if properties is not None:
+        if properties:
             palette_entry['Properties'] = TAG_Compound()
             for key in properties.keys():
                 palette_entry['Properties'][key] = TAG_String(str(properties[key]))
@@ -79,89 +91,48 @@ class CustomNBT:
         if not block_name.startswith("minecraft:"):
             block_name = "minecraft:" + block_name
 
-        if properties is not None:
-            return self.get_index(block_name, properties)
+        if properties is None:
+            properties = {}
+
+        # Serialize properties into a string key for caching
+        prop_str = str(sorted(properties.items()))
+        cache_key = f"{block_name}|{prop_str}"
+
+        if cache_key in self.custom_index:
+            return self.custom_index[cache_key]
         else:
-            if block_name in self.custom_index.keys():
-                return self.custom_index[block_name]
-            else:
-                self.custom_index[block_name] = self.get_index(block_name, properties)
-                return self.custom_index[block_name]
+            idx = self.get_index(block_name, properties)
+            self.custom_index[cache_key] = idx
+            return idx
                 
     def get_index(self, name, properties=None):
         """Gets the index of a block state in the palette."""
+        if properties is None:
+            properties = {}
+
         for i in range(len(self.nbtfile['palette'])):
             palette_entry = self.nbtfile['palette'][i]
             if palette_entry["Name"].value == name:
-                if properties is None:
-                    return i
                 correct_properties = True
+
+                palette_props = {}
                 if 'Properties' in palette_entry:
-                    for key in properties:
-                        if key not in palette_entry['Properties'] or palette_entry['Properties'][key].value != properties[key]:
+                    for k, v in palette_entry['Properties'].items():
+                        palette_props[k] = v.value
+
+                if len(properties) != len(palette_props):
+                    correct_properties = False
+                else:
+                    for k, v in properties.items():
+                        if k not in palette_props or palette_props[k] != str(v):
                             correct_properties = False
                             break
-                else:
-                    correct_properties = False # Properties provided but palette has none
 
                 if correct_properties:
                     return i
 
         self.add_palette(name, properties)
         return self.get_index(name, properties)
-    
-    def get_rotation_index(self, rotations, is_symmetric=False):
-        """Calculates rotation mapping for block states."""
-        correspondence = {}
-        
-        directions = {'north': 0, 'east': 1, 'south': 2, 'west': 3}
-        directions_i = {0: 'north', 1: 'east', 2: 'south', 3: 'west'}
-        
-        old_index = -1
-        for palette_entry in self.nbtfile['palette']:
-            old_index += 1
-            if 'Properties' in palette_entry:
-                props = {}
-                for key in palette_entry['Properties'].keys():
-                    props[key] = palette_entry['Properties'][key].value
-
-                has_changed = False
-
-                # 1. Handle blocks with 'facing' property (pistons, repeaters)
-                if 'facing' in props:
-                    direction = props['facing']
-                    if is_symmetric and (direction == 'east' or direction == 'west'):
-                        pass
-                    else:
-                        if direction in directions:
-                            props['facing'] = directions_i[(directions[direction] + rotations) % 4]
-                            has_changed = True
-
-                # 2. Handle redstone wire / blocks with individual directional keys
-                elif any(d in props for d in directions.keys()):
-                    new_props = props.copy()
-
-                    if is_symmetric:
-                        # For symmetry flip across Z axis (east/west swap)
-                        new_props['east'] = props.get('west', 'none')
-                        new_props['west'] = props.get('east', 'none')
-                        has_changed = True
-                    else:
-                        # Standard rotation
-                        for d in directions.keys():
-                            if d in props:
-                                # Rotate the target direction
-                                new_d = directions_i[(directions[d] + rotations) % 4]
-                                new_props[new_d] = props[d]
-                                has_changed = True
-
-                    props = new_props
-
-                if has_changed:
-                    new_index = self.get_index(palette_entry["Name"].value, props)
-                    correspondence[old_index] = new_index
-                    
-        return correspondence
     
     def add_block(self, position, block_state_id, metadata=None):
         """Adds a block to the structure."""
@@ -203,6 +174,7 @@ class CustomNBT:
         nbt_data['posX'] = TAG_Int(value=delta_x)
         nbt_data['posY'] = TAG_Int(value=delta_y)
         nbt_data['posZ'] = TAG_Int(value=delta_z)
+        nbt_data['id'] = TAG_String('minecraft:structure_block')
         block['nbt'] = nbt_data
                          
         self.nbtfile['blocks'].append(block)
@@ -214,32 +186,3 @@ class CustomNBT:
                 for k in range(array.shape[2]):
                     if array[i, j, k] != -1:
                         self.add_block([i + offset[0], j + offset[1], k + offset[2]], array[i, j, k])
-        
-    def add_palette_note(self):
-        """Adds note blocks to the palette."""
-        self.index_notes = len(self.nbtfile['palette'])
-        for i in range(25):
-            self.add_palette("minecraft:note_block", {'note': i})
-
-    def add_palette_instr(self):
-        """Adds instrument blocks to the palette."""
-        self.index_instr = len(self.nbtfile['palette'])
-        for key in self.minecraft_instruments.keys():
-            self.add_palette(self.minecraft_instruments[key])
-                
-    def add_repeaters(self):
-        """Adds repeaters to the palette."""
-        directions = ['east', 'west', "north", "south"]
-        self.index_repeaters = {}
-        for direction in directions:
-            self.index_repeaters[direction] = len(self.nbtfile['palette'])
-            for i in range(4):
-                self.add_palette("minecraft:repeater", {"facing": direction, "delay": i + 1})
-
-    def add_pistons(self):
-        """Adds pistons to the palette."""
-        directions = ['east', 'west', "north", "south"]
-        self.index_pistons = {}
-        for direction in directions:
-            self.index_pistons[direction] = len(self.nbtfile['palette'])
-            self.add_palette("minecraft:sticky_piston", {"facing": direction})

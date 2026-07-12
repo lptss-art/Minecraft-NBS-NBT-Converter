@@ -1,5 +1,4 @@
 import numpy as np
-from core.customNBT import CustomNBT
 from core.layout_base import LayoutBase
 from core.brick import Brick
 
@@ -8,17 +7,17 @@ class MinecartBrick(LayoutBase):
     Manages the central minecart rail for Layout 1.
     Builds a 2-block long straight rail segment (progressing along X).
     """
-    def __init__(self, nbt=None, start_x=0, start_y=0, start_z=0):
-        super().__init__(x=start_x, y=start_y, z=start_z, nbt=nbt)
+    def __init__(self, start_x=0, start_y=0, start_z=0):
+        super().__init__(x=start_x, y=start_y, z=start_z)
 
     def build(self):
         # We need a solid block under the rail
-        self.add_block(0, 0, 0, self.index_wood)
-        self.add_block(1, 0, 0, self.index_wood)
+        self.add_block(0, 0, 0, "minecraft:oak_planks")
+        self.add_block(1, 0, 0, "minecraft:oak_planks")
 
         # Detector rail on the first block, powered rail on the second
-        self.add_block(0, 1, 0, self.index_detector)
-        self.add_block(1, 1, 0, self.index_rail)
+        self.add_block(0, 1, 0, "minecraft:detector_rail", {"shape": "east_west"})
+        self.add_block(1, 1, 0, "minecraft:powered_rail", {"shape": "east_west"})
 
         self.tick += 1
 
@@ -27,10 +26,10 @@ class Layout1Brick(LayoutBase):
     Manages a straight line layout (Repeater -> Block) for a single tick.
     Inherits from LayoutBase.
     """
-    def __init__(self, nbt=None, start_x=0, start_y=0, start_z=0):
-        super().__init__(x=start_x, y=start_y, z=start_z, nbt=nbt)
+    def __init__(self, start_x=0, start_y=0, start_z=0):
+        super().__init__(x=start_x, y=start_y, z=start_z)
 
-    def build(self, notes_integer=None, notes_half=None):
+    def build(self, notes_integer=None, notes_half=None, delay=1, branch_shape='I'):
         """
         Builds a single tick's worth of blocks for the straight layout.
         Notes branch off sideways from the central block.
@@ -43,55 +42,46 @@ class Layout1Brick(LayoutBase):
         integer_note_count = len(notes_integer)
         half_note_count = len(notes_half)
 
-        # The central block (wood)
-        self.add_block(0, 0, 0, self.index_wood)
+        brick_int = Brick()
+        brick_half = Brick()
+
+        # The central block (wood) and the connecting repeater
+        brick_int.add_block(0, 0, 0, "minecraft:oak_planks", tick=self.tick)
+        brick_int.add_block(1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
 
         # Place notes branching off to the sides (z-axis)
-        if integer_note_count > 0:
-            # Place note directly on top of the block? No, note goes on top of its instrument.
-            # Let's put notes next to the central block.
-
-            # 1st Note: z=-1
-            if integer_note_count >= 1:
-                self.add_note(0, 0, -1, notes_integer[0])
-
-            # 2nd Note: z=1
-            if integer_note_count >= 2:
-                self.add_note(0, 0, 1, notes_integer[1])
-
-            # 3rd Note: z=-2 (attached via redstone)
-            if integer_note_count >= 3:
-                self.add_block(0, 0, -1, self.index_redstone, needs_down=True)
-                self.add_note(0, 0, -2, notes_integer[2])
-
-            # 4th Note: z=2
-            if integer_note_count >= 4:
-                self.add_block(0, 0, 1, self.index_redstone, needs_down=True)
-                self.add_note(0, 0, 2, notes_integer[3])
+        if branch_shape == 'I':
+            for i in range(integer_note_count):
+                side = 1 if i % 2 == 0 else -1
+                depth = (i // 2) + 1
+                brick_int.add_block(0, 0, depth * side, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                self.add_note_to_brick(brick_int, -1, 0, depth * side, notes_integer[i])
+        else: # 'L' shape
+            for i in range(integer_note_count):
+                z_pos = i + 1
+                brick_int.add_block(0, 0, z_pos, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                self.add_note_to_brick(brick_int, -1, 0, z_pos, notes_integer[i])
 
         # Half ticks logic using piston
         if half_note_count > 0:
             # Place piston above the central block
-            # Actually, standard redstone clock offset:
-            # Piston at [0, 1, 0] facing East, pushing a redstone block
-            self.add_block(0, 1, 0, self.index_piston)
-            self.add_block(1, 1, 0, self.index_redstone_block)
+            brick_half.add_block(0, 1, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
+            brick_half.add_block(1, 1, 0, "minecraft:redstone_block", tick=self.tick)
 
-            # Note for half tick is activated by the redstone block
-            # Let's place it at x=2, y=1, z=1
-            if half_note_count >= 1:
-                self.add_note(2, 1, 1, notes_half[0])
+            if branch_shape == 'I':
+                for i in range(half_note_count):
+                    side = 1 if i % 2 == 0 else -1
+                    depth = (i // 2) + 1
+                    brick_half.add_block(1, 1, depth * side, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                    self.add_note_to_brick(brick_half, 2, 1, depth * side, notes_half[i])
+            else: # 'L' shape
+                for i in range(half_note_count):
+                    z_pos = i + 1
+                    brick_half.add_block(1, 1, z_pos, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                    self.add_note_to_brick(brick_half, 2, 1, z_pos, notes_half[i])
 
-            if half_note_count >= 2:
-                self.add_note(2, 1, -1, notes_half[1])
-
-            if half_note_count >= 3:
-                self.add_block(2, 1, 1, self.index_redstone, needs_down=True)
-                self.add_note(2, 1, 2, notes_half[2])
-
-            if half_note_count >= 4:
-                self.add_block(2, 1, -1, self.index_redstone, needs_down=True)
-                self.add_note(2, 1, -2, notes_half[3])
+        self.add_data(brick_int)
+        self.add_data(brick_half)
 
         self.tick += 1
 
@@ -99,9 +89,9 @@ class Layout1Track(Brick):
     """
     Manages a sequence of Layout1Bricks, assembling them into a continuous straight line.
     """
-    def __init__(self, nbt_template=None):
+    def __init__(self, branch_shape='I'):
         super().__init__()
-        self.nbt_template = nbt_template
+        self.branch_shape = branch_shape
 
     def build_sequence(self, df_notes):
         """Processes notes and maps them to a continuous straight line of bricks."""
@@ -110,27 +100,20 @@ class Layout1Track(Brick):
 
         for tick in df_notes.index:
             tick_diff = int(tick - last_tick)
+            actual_delay = max(1, min(4, tick_diff))
 
-            brick = Layout1Brick(nbt=self.nbt_template)
+            brick = Layout1Brick()
             brick.tick = int(last_tick)
 
             # Get notes for this tick
             notes_entier = df_notes.loc[tick]['note entier']
             notes_demi = df_notes.loc[tick]['note demi']
 
-            # Build the brick (just the notes)
-            brick.build(notes_entier, notes_demi)
-
-            # Add the connecting repeater to the track itself
-            actual_delay = max(1, min(4, tick_diff))
-            index_repeater = self.nbt_template.index_repeaters["west"]
-
-            # The track adds a repeater after the brick's main block.
-            # Position it directly on the track logic
-            self.add_block(pos[0] + 1, pos[1], pos[2], index_repeater + actual_delay - 1, tick, needs_down=True)
+            # Build the brick (includes the repeater now)
+            brick.build(notes_entier, notes_demi, delay=actual_delay, branch_shape=self.branch_shape)
 
             # Build the parallel minecart track
-            minecart = MinecartBrick(nbt=self.nbt_template)
+            minecart = MinecartBrick()
             minecart.build()
 
             # Translate both to current global track position
