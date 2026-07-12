@@ -38,13 +38,37 @@ class Layout2Brick(LayoutBase):
             (0, -1, -1, 0)
         ]
 
-        CONFIG_INTEGER = [
+        CONFIG_INTEGER_base = [ # use when <= 5 intiers et si pas de demi note
             (0, (0, 0, 0), 0),
-            (2, (1, -1,  -1), 0),
-            (3, (-1, -1,  -1), 0)
+            (1, (1, 0, 0), 0),
+            (2, (0, 0, 1), 0),
+            (3, (1, -1, -1), 0),
+            (4, (-1, -1, -1), 0)
         ]
 
-        CONFIG_INTEGER_PISTON = [
+        CONFIG_INTEGER_base_L = [
+            (0, (0, 0, 0), 0),
+            (1, (0, 0, 1), 0),
+            (2, (-1, -1, -1), 0),
+            (3, (1, -1, -1), 0)
+        ]
+
+        CONFIG_INTEGER_base_I = [
+            (0, (0, 0, 0), 0),
+            (1, (0, 0, 1), 0),
+            (2, (-1, -1, -1), 0)
+        ]
+
+        CONFIG_INTEGER_suite_I = [
+            (3, (0, -1, -1), 1),
+            (4, (0, -1,  1), 0),
+            (5, (0, -1, -1), 1),
+            (6, (0, -1,  1), 0),
+            (7, (0, -1, -1), 1),
+            (8, (0, -1,  1), 0)
+        ]
+
+        CONFIG_INTEGER_suite_L = [
             (4, (0, -1, -1), 1),
             (5, (0, -1,  1), 0),
             (6, (0, -1, -1), 1),
@@ -67,18 +91,19 @@ class Layout2Brick(LayoutBase):
 
                 self.add_note_to_brick(self, x, y, z, notes_half[i])
 
-            self.translate(3, 0, 0) # User requested to change it from 2 back to 3
-            self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
-            self.add_block(1, 0, 0, "minecraft:redstone_block", tick=self.tick)
+            self.translate(2, 0, 0)
+            self.add_block(0, 0, 0, "minecraft:redstone_block", tick=self.tick)
             self.translate(1, 0, 0)
+            self.add_block(0, 0, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
 
         # 2. Partie Notes Entières (Côté Piston)
         if nb_integer > 5 or (nb_integer > 4 and nb_half != 0):
             self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
-            for idx, (x, y, z), trigger_translation in CONFIG_INTEGER_PISTON:
+            suite_config = CONFIG_INTEGER_suite_L if en_L else CONFIG_INTEGER_suite_I
+            for idx, (x, y, z), trigger_translation in suite_config:
                 if nb_integer > idx:
-                    if trigger_translation:
+                    if trigger_translation > 0:
                         self.translate(1, 0, 0)
                         self.add_block(0,  0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
 
@@ -90,33 +115,26 @@ class Layout2Brick(LayoutBase):
         if en_L:
             self.rotate(1)
 
-        # 4. Placement Notes Entières Base (CONFIG_INTEGER)
-        # We process the remaining notes around the origin (0,0,0)
-        # Note 0 is at (0,0,0)
+        # 4. Placement Notes Entières Base
+        base_config = CONFIG_INTEGER_base
+        if nb_integer > 5 or (nb_integer > 4 and nb_half != 0):
+            # We used the piston side/suite arrays
+            base_config = CONFIG_INTEGER_base_L if en_L else CONFIG_INTEGER_base_I
+        elif nb_half > 0:
+            # We used piston but no suite array (integer <= 4)
+            base_config = CONFIG_INTEGER_base_L if en_L else CONFIG_INTEGER_base_I
+
         if nb_integer == 0:
             self.add_block(0, 0, 0, "minecraft:oak_planks", tick=self.tick)
-        else:
-            self.add_note_to_brick(self, 0, 0, 0, notes_integer[0])
 
-        for idx, (x, y, z), _ in CONFIG_INTEGER:
-            if idx == 0: continue
-
+        for idx, (x, y, z), _ in base_config:
             if nb_integer > idx:
                 self.add_note_to_brick(self, x, y, z, notes_integer[idx])
-
-        # Conditionally place note 4 if no half notes and <= 4 integer notes
-        if nb_integer > 4:
-            if nb_half == 0 and nb_integer <= 5:
-                # en L c'est le second (0,0,1), sinon c'est le 1er (1,0,0)
-                if en_L:
-                    self.add_note_to_brick(self, 0, 0, 1, notes_integer[4])
-                else:
-                    self.add_note_to_brick(self, 1, 0, 0, notes_integer[4])
 
         # 5. Note 1 en fonction de L ou I (CONFIG_INTEGER_1)
         if nb_integer > 1:
             if en_L:
-                self.add_note_to_brick(self, 1, 0, 0, notes_integer[1])
+                self.add_note_to_brick(self, 0, 0, -1, notes_integer[1])
             else:
                 self.add_note_to_brick(self, 0, 0, 1, notes_integer[1])
 

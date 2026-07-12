@@ -1,9 +1,9 @@
-Z \ X,-1,0,1,2,3,4
+Z \ X,-1,0,1,2,3
 -1,,"Y:-1 minecraft:stone
-Y:0 minecraft:redstone_wire",,,,
+Y:0 minecraft:redstone_wire",,,
 0,"Y:-1 minecraft:stone
 Y:0 minecraft:repeater","Y:-2 minecraft:stone
-Y:0 minecraft:note_block",Y:0 minecraft:sticky_piston,Y:0 minecraft:redstone_block,,"Y:-2 minecraft:stone
+Y:0 minecraft:note_block",Y:0 minecraft:redstone_block,,"Y:-2 minecraft:stone
 Y:0 minecraft:note_block"
 1,,"Y:-2 minecraft:stone
-Y:0 minecraft:note_block",,,,
+Y:0 minecraft:note_block",,,
