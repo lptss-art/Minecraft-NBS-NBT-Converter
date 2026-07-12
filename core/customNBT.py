@@ -65,9 +65,10 @@ class CustomNBT:
         max_y = max(block['pos'][1].value for block in self.nbtfile['blocks'])
         max_z = max(block['pos'][2].value for block in self.nbtfile['blocks'])
 
-        self.nbtfile["size"][0].value = max_x - min_x + 1
-        self.nbtfile["size"][1].value = max_y - min_y + 1
-        self.nbtfile["size"][2].value = max_z - min_z + 1
+        # Clamp dimensions to a maximum of 31 to prevent Minecraft load limits
+        self.nbtfile["size"][0].value = min(31, max_x - min_x + 1)
+        self.nbtfile["size"][1].value = min(31, max_y - min_y + 1)
+        self.nbtfile["size"][2].value = min(31, max_z - min_z + 1)
 
         self.nbtfile.write_file(filename)
         
