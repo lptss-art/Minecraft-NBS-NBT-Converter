@@ -123,7 +123,7 @@ class Layout2Brick(LayoutBase):
             base_config = CONFIG_INTEGER_base_L if en_L else CONFIG_INTEGER_base_I
 
         if nb_integer == 0:
-            self.add_block(0, 0, 0, "minecraft:oak_planks", tick=self.tick)
+            self.add_block(0, 0, 0, "minecraft:redstone_lamp", tick=self.tick)
 
         for idx, (x, y, z), _ in base_config:
             if nb_integer > idx:

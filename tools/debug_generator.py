@@ -3,7 +3,7 @@ import random
 import pandas as pd
 from core.MusicData import Note
 from core.Layout2 import Layout2Brick
-from core.Layout1 import Layout1Brick
+from core.Layout1 import Layout1Brick, Layout1Track, BaseLaneBrick, Layout1CompleteTrack
 from core.customNBT import CustomNBT
 from core.StructureGenerator import StructureGenerator
 
@@ -65,7 +65,61 @@ def generate_test_blocks(export_dir="output"):
     nbt_seq.write_file(os.path.join(export_dir, "debug_assembly_serpentine.nbt"))
     spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_assembly_serpentine")
     test_index += 1
+    
+    # Test 5: Base Lane Standard (Normalisé à Y=0) ---
+    nbt_lane = CustomNBT()
+    lane = BaseLaneBrick(start_x=0, start_y=0, start_z=0)
+    lane.build(start=False)
+    # On nettoie ou remplace l'air si nécessaire avec .clean()
+    lane.clean("minecraft:stone")
+    lane.write_nbt(nbt_lane)
+    nbt_lane.write_file(os.path.join(export_dir, "debug_base_lane_standard.nbt"))
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_base_lane_standard")
+    test_index += 1
 
+    # Test 6: Base Lane Start (Normalisé à Y=0) ---
+    nbt_lane_start = CustomNBT()
+    lane_start = BaseLaneBrick(start_x=0, start_y=0, start_z=0)
+    lane_start.build(start=True)
+    lane_start.clean("minecraft:stone")
+    lane_start.write_nbt(nbt_lane_start)
+    nbt_lane_start.write_file(os.path.join(export_dir, "debug_base_lane_start.nbt"))
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_base_lane_start")
+    test_index += 1
+    
+    # Test 7: Complete Layout1Track (Circuit Minecart en ligne droite) ---
+    nbt_l1_track = CustomNBT()
+    l1_track = Layout1Track()
+    # On réutilise le même jeu de notes factices généré pour la séquence
+    l1_track.build_sequence(df_seq)
+    l1_track.clean("minecraft:stone")
+    l1_track.write_nbt(nbt_l1_track)
+    nbt_l1_track.write_file(os.path.join(export_dir, "debug_assembly_layout1_track.nbt"))
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_assembly_layout1_track")
+    test_index += 1
+    
+    # --- Test 8: Complete Layout1CompleteTrack (Ligne centrale + 6 pistes latérales) ---
+    ticks_list = list(range(0, 100, 5))
+    nb_elements = len(ticks_list) # Vaudra 20
+    data_seq = {
+        'tick': ticks_list,
+        'note entier': [make_notes(random.randint(1, 6)) for _ in range(nb_elements)],
+        'note demi': [make_notes(random.randint(0, 4)) for _ in range(nb_elements)]
+    }
+    df_seq = pd.DataFrame(data_seq).set_index('tick')
+    
+    nbt_l1_complete = CustomNBT()
+    l1_complete_track = Layout1CompleteTrack()
+    
+    # On utilise le DataFrame de test df_seq existant
+    l1_complete_track.build_sequence(df_seq)
+    l1_complete_track.clean("minecraft:stone")
+    l1_complete_track.write_nbt(nbt_l1_complete)
+    
+    nbt_l1_complete.write_file(os.path.join(export_dir, "debug_layout1_complete_track.nbt"))
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_complete_track")
+    test_index += 1
+    
     # Output the master spawner
     index_stone = spawner_nbt.get_index_safe("minecraft:stone")
     index_button = spawner_nbt.get_index_safe("minecraft:stone_button", {"face": "floor", "facing": "east"})
@@ -73,4 +127,4 @@ def generate_test_blocks(export_dir="output"):
     spawner_nbt.add_block([-1, 1, 0], index_button)
     spawner_nbt.write_file(os.path.join(export_dir, "debug_spawner.nbt"))
 
-    return 3, 1
+    return 5, 3

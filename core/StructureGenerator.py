@@ -1,7 +1,7 @@
 import numpy as np
 from core.customNBT import CustomNBT
 from core.brick import Brick
-from core.Layout1 import Layout1Track
+from core.Layout1 import Layout1Track,Layout1CompleteTrack
 from core.Layout2 import Layout2Track
 
 class StructureGenerator:
@@ -18,7 +18,7 @@ class StructureGenerator:
     def generate_blocks(self):
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
         if "Layout1" in self.layout_type:
-            track = Layout1Track()
+            track = Layout1CompleteTrack()
         else:
             # Check if branch shape configuration is requested in palettes ('I' or 'L')
             branch_shape = 'I'
