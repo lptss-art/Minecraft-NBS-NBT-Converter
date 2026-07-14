@@ -56,7 +56,7 @@ def generate_test_blocks(export_dir="output"):
     df_seq = pd.DataFrame(data_seq).set_index('tick')
 
     nbt_seq = CustomNBT()
-    gen_seq = StructureGenerator(df_seq, layout_type="Layout2", palettes={"branch_shape": "L"})
+    gen_seq = StructureGenerator(df_seq, layout_type="Layout2")
     gen_seq.generate_blocks()
 
     gen_seq.global_data.clean("minecraft:stone")

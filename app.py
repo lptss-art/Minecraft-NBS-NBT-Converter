@@ -120,7 +120,7 @@ def render_generate_tab():
         with open(temp_path_2, "wb") as f:
             f.write(uploaded_file_2.getbuffer())
 
-        layout_type = st.selectbox("Select Structure Layout:", ["Layout2 (Compact Serpentine)", "Layout1 (Minecart)"])
+        layout_type = st.selectbox("Select Structure Layout:", ["Layout2 (Compact Serpentine)", "Layout1 (Complete 6-track Minecart)"])
         export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"])
 
         st.subheader("Export Configuration")
