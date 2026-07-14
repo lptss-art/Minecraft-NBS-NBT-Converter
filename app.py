@@ -6,14 +6,9 @@ import pandas as pd
 from core.MusicData import MusicData, prep_data
 from core.customNBT import CustomNBT
 from core.StructureGenerator import StructureGenerator
+from core.config import get_export_dir, update_export_dir
 
-st.set_page_config(page_title="NoteBlock Studio to NBT Generator", layout="wide")
-
-st.title("NoteBlock Studio to NBT Generator")
-
-tab1, tab2, tab3 = st.tabs(["1. Pre-process NBS (Instruments & Tempo)", "2. Generate NBT Structure", "3. Debug & Test Generation"])
-
-with tab1:
+def render_preprocess_tab():
     st.header("Pre-process NBS")
 
     uploaded_file = st.file_uploader("Upload NBS file", type=["nbs"], key="nbs_upload_1")
@@ -113,7 +108,7 @@ with tab1:
                 )
             st.success("File processed and ready for download!")
 
-with tab2:
+def render_generate_tab():
     st.header("Generate NBT Structure")
 
     uploaded_file_2 = st.file_uploader("Upload NBS file for Generation", type=["nbs"], key="nbs_upload_2")
@@ -129,7 +124,6 @@ with tab2:
         export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"])
 
         st.subheader("Export Configuration")
-        from core.config import get_export_dir, update_export_dir
         export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
         custom_out_name = st.text_input("Output File Name (without .nbt)", value=os.path.splitext(uploaded_file_2.name)[0].lower())
 
@@ -226,12 +220,11 @@ with tab2:
                     mime=st.session_state.generated_nbt_mime
                 )
 
-with tab3:
+def render_debug_tab():
     st.header("Debug / Test Generation")
 
     st.write("Generate complex note block structures (Lego bricks) to test layout limits and transformations directly in Minecraft.")
 
-    from core.config import get_export_dir, update_export_dir
     debug_export_dir_input = st.text_input("Export Directory Path (Debug)", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
 
     if st.button("Generate Test Blocks"):
@@ -249,3 +242,21 @@ with tab3:
             import traceback
             st.error(f"An error occurred during debug generation: {e}")
             st.text(traceback.format_exc())
+
+def main():
+    st.set_page_config(page_title="NoteBlock Studio to NBT Generator", layout="wide")
+    st.title("NoteBlock Studio to NBT Generator")
+
+    tab1, tab2, tab3 = st.tabs(["1. Pre-process NBS (Instruments & Tempo)", "2. Generate NBT Structure", "3. Debug & Test Generation"])
+
+    with tab1:
+        render_preprocess_tab()
+
+    with tab2:
+        render_generate_tab()
+
+    with tab3:
+        render_debug_tab()
+
+if __name__ == "__main__":
+    main()

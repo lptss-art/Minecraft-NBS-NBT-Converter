@@ -13,14 +13,6 @@ import core.ReadNBS as ReadNBS
 import sys
 import os
 
-# Add tools to path to allow importing the visualizer
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-try:
-    from tools.visualize_nbt import render_data_to_image, export_topdown_grid
-    CAN_VISUALIZE = True
-except ImportError:
-    CAN_VISUALIZE = False
-
 class TestBrickClass(unittest.TestCase):
     def test_initialization(self):
         data = Brick()
@@ -91,25 +83,6 @@ class TestLayout1(unittest.TestCase):
         # Check if data was populated
         self.assertTrue(len(layout.blocks) > 0)
 
-        if CAN_VISUALIZE:
-            nbt = CustomNBT()
-            layout.clean("minecraft:stone")
-            layout.write_nbt(nbt)
-
-            render_data_to_image(
-                layout.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Layout 1",
-                output_path="output/debug_images/test_layout1.png"
-            )
-            export_topdown_grid(
-                layout.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Layout 1 Grid",
-                csv_path="output/debug_images/test_layout1_grid.csv",
-                img_path="output/debug_images/test_layout1_grid.png"
-            )
-
     def test_write_nbt(self):
         nbt = CustomNBT()
         layout = Layout1Brick()
@@ -133,25 +106,6 @@ class TestTrackAssembly(unittest.TestCase):
         track.build_sequence(df_notes)
         self.assertTrue(len(track.blocks) > 0)
 
-        if CAN_VISUALIZE:
-            nbt = CustomNBT()
-            track.clean("minecraft:stone")
-            track.write_nbt(nbt)
-
-            render_data_to_image(
-                track.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Track Layout 1",
-                output_path="output/debug_images/test_layout1_track.png"
-            )
-            export_topdown_grid(
-                track.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Track Layout 1 Grid",
-                csv_path="output/debug_images/test_layout1_track_grid.csv",
-                img_path="output/debug_images/test_layout1_track_grid.png"
-            )
-
     def test_layout2_track_assembly(self):
         track = Layout2Track()
 
@@ -165,25 +119,6 @@ class TestTrackAssembly(unittest.TestCase):
         track.build_sequence(df_notes)
         self.assertTrue(len(track.blocks) > 0)
 
-        if CAN_VISUALIZE:
-            nbt = CustomNBT()
-            track.clean("minecraft:stone")
-            track.write_nbt(nbt)
-
-            render_data_to_image(
-                track.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Track Layout 2",
-                output_path="output/debug_images/test_layout2_track.png"
-            )
-            export_topdown_grid(
-                track.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Track Layout 2 Grid",
-                csv_path="output/debug_images/test_layout2_track_grid.csv",
-                img_path="output/debug_images/test_layout2_track_grid.png"
-            )
-
 class TestLayout2(unittest.TestCase):
     def test_add_notes(self):
         layout = Layout2Brick()
@@ -195,25 +130,6 @@ class TestLayout2(unittest.TestCase):
 
         # Check if data was populated
         self.assertTrue(len(layout.blocks) > 0)
-
-        if CAN_VISUALIZE:
-            nbt = CustomNBT()
-            layout.clean("minecraft:stone")
-            layout.write_nbt(nbt)
-
-            render_data_to_image(
-                layout.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Layout 2",
-                output_path="output/debug_images/test_layout2.png"
-            )
-            export_topdown_grid(
-                layout.blocks,
-                nbt_palette=nbt.nbtfile['palette'],
-                title="Test Layout 2 Grid",
-                csv_path="output/debug_images/test_layout2_grid.csv",
-                img_path="output/debug_images/test_layout2_grid.png"
-            )
 
     def test_write_nbt(self):
         nbt = CustomNBT()

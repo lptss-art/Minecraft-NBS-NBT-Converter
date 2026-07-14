@@ -12,12 +12,12 @@ class MinecartBrick(LayoutBase):
 
     def build(self):
         # We need a solid block under the rail
+        self.add_block(-1, 0, 0, "minecraft:oak_planks")
         self.add_block(0, 0, 0, "minecraft:oak_planks")
-        self.add_block(1, 0, 0, "minecraft:oak_planks")
 
         # Detector rail on the first block, powered rail on the second
-        self.add_block(0, 1, 0, "minecraft:detector_rail", {"shape": "east_west"})
-        self.add_block(1, 1, 0, "minecraft:powered_rail", {"shape": "east_west"})
+        self.add_block(-1, 1, 0, "minecraft:detector_rail", {"shape": "east_west"})
+        self.add_block(0, 1, 0, "minecraft:powered_rail", {"shape": "east_west"})
 
         self.tick += 1
 
@@ -29,7 +29,7 @@ class Layout1Brick(LayoutBase):
     def __init__(self, start_x=0, start_y=0, start_z=0):
         super().__init__(x=start_x, y=start_y, z=start_z)
 
-    def build(self, notes_integer=None, notes_half=None, delay=1, branch_shape='I'):
+    def build(self, notes_integer=None, notes_half=None, delay=1):
         """
         Builds a single tick's worth of blocks for the straight layout.
         Notes branch off sideways from the central block.
@@ -39,46 +39,37 @@ class Layout1Brick(LayoutBase):
         if notes_half is None:
             notes_half = []
 
-        integer_note_count = len(notes_integer)
-        half_note_count = len(notes_half)
-
         brick_int = Brick()
         brick_half = Brick()
 
-        # The central block (wood) and the connecting repeater
-        brick_int.add_block(0, 0, 0, "minecraft:oak_planks", tick=self.tick)
-        brick_int.add_block(1, 0, 0, "minecraft:repeater", {"facing": "west", "delay": delay}, tick=self.tick, needs_down=True)
+        # (-1, 0, 0) repeater facing east
+        brick_int.add_block(-1, 0, 0, "minecraft:repeater", {"facing": "east", "delay": delay}, tick=self.tick, needs_down=True)
 
-        # Place notes branching off to the sides (z-axis)
-        if branch_shape == 'I':
-            for i in range(integer_note_count):
-                side = 1 if i % 2 == 0 else -1
-                depth = (i // 2) + 1
-                brick_int.add_block(0, 0, depth * side, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                self.add_note_to_brick(brick_int, -1, 0, depth * side, notes_integer[i])
-        else: # 'L' shape
-            for i in range(integer_note_count):
-                z_pos = i + 1
-                brick_int.add_block(0, 0, z_pos, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                self.add_note_to_brick(brick_int, -1, 0, z_pos, notes_integer[i])
+        if len(notes_integer) > 0:
+            brick_int.add_block(0, 0, 0, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+            self.add_note_to_brick(brick_int, 0, 0, 0, notes_integer[0])
+        else:
+            brick_int.add_block(0, 0, 0, "minecraft:oak_planks", tick=self.tick)
 
-        # Half ticks logic using piston
-        if half_note_count > 0:
-            # Place piston above the central block
-            brick_half.add_block(0, 1, 0, "minecraft:sticky_piston", {"facing": "east"}, tick=self.tick)
-            brick_half.add_block(1, 1, 0, "minecraft:redstone_block", tick=self.tick)
+        if len(notes_integer) > 1:
+            brick_int.add_block(0, 0, 1, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+            self.add_note_to_brick(brick_int, 0, 0, 1, notes_integer[1])
 
-            if branch_shape == 'I':
-                for i in range(half_note_count):
-                    side = 1 if i % 2 == 0 else -1
-                    depth = (i // 2) + 1
-                    brick_half.add_block(1, 1, depth * side, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                    self.add_note_to_brick(brick_half, 2, 1, depth * side, notes_half[i])
-            else: # 'L' shape
-                for i in range(half_note_count):
-                    z_pos = i + 1
-                    brick_half.add_block(1, 1, z_pos, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
-                    self.add_note_to_brick(brick_half, 2, 1, z_pos, notes_half[i])
+        if len(notes_half) > 0:
+            brick_half.add_block(0, 0, -1, "minecraft:sticky_piston", {"facing": "north"}, tick=self.tick)
+            brick_half.add_block(0, 0, -2, "minecraft:redstone_block", tick=self.tick)
+
+            if len(notes_half) > 0:
+                brick_half.add_block(0, 0, -4, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                self.add_note_to_brick(brick_half, 0, 0, -4, notes_half[0])
+
+            if len(notes_half) > 1:
+                brick_half.add_block(1, 0, -3, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                self.add_note_to_brick(brick_half, 1, 0, -3, notes_half[1])
+
+            if len(notes_half) > 2:
+                brick_half.add_block(-1, 0, -3, "minecraft:redstone_wire", tick=self.tick, needs_down=True)
+                self.add_note_to_brick(brick_half, -1, 0, -3, notes_half[2])
 
         self.add_data(brick_int)
         self.add_data(brick_half)
@@ -89,9 +80,8 @@ class Layout1Track(Brick):
     """
     Manages a sequence of Layout1Bricks, assembling them into a continuous straight line.
     """
-    def __init__(self, branch_shape='I'):
+    def __init__(self):
         super().__init__()
-        self.branch_shape = branch_shape
 
     def build_sequence(self, df_notes):
         """Processes notes and maps them to a continuous straight line of bricks."""
@@ -110,7 +100,7 @@ class Layout1Track(Brick):
             notes_demi = df_notes.loc[tick]['note demi']
 
             # Build the brick (includes the repeater now)
-            brick.build(notes_entier, notes_demi, delay=actual_delay, branch_shape=self.branch_shape)
+            brick.build(notes_entier, notes_demi, delay=actual_delay)
 
             # Build the parallel minecart track
             minecart = MinecartBrick()
@@ -120,7 +110,7 @@ class Layout1Track(Brick):
             brick.position = [pos[0], pos[1], pos[2]]
 
             # The minecart track runs parallel, separated by a couple blocks on the Z axis
-            minecart.position = [pos[0], pos[1], pos[2] - 3]
+            minecart.position = [pos[0], pos[1], pos[2] + 3]
 
             # Layout1 progresses 2 blocks per tick on the X axis
             pos[0] += 2
