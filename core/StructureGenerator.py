@@ -20,7 +20,16 @@ class StructureGenerator:
         if "Layout1" in self.layout_type:
             track = Layout1CompleteTrack()
         else:
-            track = Layout2Track()
+            # Check if branch shape configuration is requested in palettes ('I' or 'L')
+            branch_shape = 'I'
+            if self.palettes and 'branch_shape' in self.palettes:
+                branch_shape = self.palettes['branch_shape']
+
+            # For backward compatibility, translate boolean 'is_symmetric' if it exists
+            if self.palettes and 'is_symmetric' in self.palettes:
+                 branch_shape = 'I' if self.palettes['is_symmetric'] else 'L'
+
+            track = Layout2Track(branch_shape=branch_shape)
 
         track.build_sequence(self.df_notes)
         self.global_data = track

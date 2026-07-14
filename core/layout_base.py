@@ -30,11 +30,11 @@ class LayoutBase(Brick):
         """Adds a note block, instrument block below, and air above to this brick."""
         self.add_note_to_brick(self, x, y, z, note)
 
-    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False):
+    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False, nbt_data=None):
         """Adds a generic block to the layout data."""
         if block_name is None:
             return
-        super().add_block(x, y, z, block_name, properties=properties, tick=self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up)
+        super().add_block(x, y, z, block_name, properties=properties, tick=self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up, nbt_data=nbt_data)
 
     def write_nbt(self, nbt_handler):
         """Writes the layout data to the customNBT object."""
