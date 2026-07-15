@@ -22,8 +22,11 @@ class LayoutBase(Brick):
         instruments = list(CustomNBT.minecraft_instruments.values())
         instr_name = instruments[instr_index] if instr_index < len(instruments) else "minecraft:dirt"
 
+        gravity_blocks = ["minecraft:sand", "minecraft:red_sand", "minecraft:gravel"]
+        instr_needs_down = instr_name in gravity_blocks
+
         brick.add_block(x, y, z, "minecraft:note_block", {"note": note_val}, tick=self.tick)
-        brick.add_block(x, y - 1, z, instr_name, {}, tick=self.tick, needs_down=True)
+        brick.add_block(x, y - 1, z, instr_name, {}, tick=self.tick, needs_down=instr_needs_down)
         brick.add_block(x, y + 1, z, "minecraft:air", {}, tick=self.tick)
 
     def add_note(self, x, y, z, note):
