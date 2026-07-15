@@ -119,74 +119,147 @@ class Layout3Brick(LayoutBase):
         """Marks a coordinate as occupied."""
         self.occupied_space[(x, y, z)] = block_type
 
-    def try_place_template(self, anchor, target_tick, is_half):
+    def get_facing(self, dx, dz):
+        if dz > 0: return 'north'
+        if dz < 0: return 'south'
+        if dx > 0: return 'west'
+        if dx < 0: return 'east'
+        return 'north'
+
+    def try_place_template(self, anchor, target_tick, is_half, target_x, target_z):
         """
-        Tries to generate a redstone template from the anchor to satisfy target_tick.
-        Returns (blocks_to_place, new_anchors) if successful, else None.
+        Uses BFS to find a path from the anchor to a free space closest to (target_x, target_z)
+        while burning the necessary delay using repeaters, and using redstone wire for 0-delay distance.
         """
         tick_diff = target_tick - anchor.tick
-
-        # We can't connect to a future anchor
         if tick_diff < 0:
             return None
 
-        blocks_to_place = []
-        new_anchors = []
+        from collections import deque
 
-        cx, cy, cz = anchor.x, anchor.y, anchor.z
-        dx, dz = anchor.direction
+        # State: (x, z, delay_left, current_direction, path_taken)
+        # path_taken: list of tuples (x, y, z, block_name, properties, needs_down, new_direction)
+        start_x, start_z = anchor.x + anchor.direction[0], anchor.z + anchor.direction[1]
 
-        # Advance 1 block from the anchor
-        cx += dx
-        cz += dz
+        queue = deque([(start_x, start_z, tick_diff, anchor.direction, [])])
+        visited = set()
+        visited.add((start_x, start_z, tick_diff, anchor.direction))
 
-        # Simple straight line template with repeaters to burn delay
-        # In a full pathfinding A*, this would route around obstacles.
-        # Here we do a straight projection in the anchor's direction.
+        best_end_state = None
+        best_end_dist = float('inf')
 
-        delay_left = tick_diff
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
-        # 1. Route the delay
-        while delay_left > 0:
-            burn = min(4, delay_left)
-            # Facing is opposite to direction of travel in Minecraft
-            facing = 'north' if dz > 0 else 'south' if dz < 0 else 'west' if dx > 0 else 'east'
+        # BFS search radius limit to prevent infinite loops
+        max_search_depth = 50
 
-            blocks_to_place.append((cx, cy, cz, "minecraft:repeater", {"facing": facing, "delay": burn}, True))
-            delay_left -= burn
+        while queue:
+            cx, cz, delay_left, current_dir, path = queue.popleft()
 
-            cx += dx
-            cz += dz
+            if len(path) > max_search_depth:
+                continue
 
-        # 2. Place Note Infrastructure
-        # Needs 3 blocks of height clearance
-        note_coords = [(cx, cy-1, cz, 'instrument'), (cx, cy, cz, 'note_block'), (cx, cy+1, cz, 'air')]
+            # If we burned all delay, we can potentially place the note block here
+            if delay_left == 0:
+                # Check if we can place the note infrastructure here
+                cy = anchor.y
 
-        if is_half:
-            # Need room for piston and redstone block (demi logic)
-            blocks_to_place.append((cx, cy, cz, "minecraft:redstone_block", {}, False))
-            cx += dx
-            cz += dz
-            facing_piston = 'north' if dz < 0 else 'south' if dz > 0 else 'west' if dx < 0 else 'east'
-            blocks_to_place.append((cx, cy, cz, "minecraft:sticky_piston", {"facing": facing_piston}, False))
-            cx += dx
-            cz += dz
-            note_coords = [(cx, cy-1, cz, 'instrument'), (cx, cy, cz, 'note_block'), (cx, cy+1, cz, 'air')]
+                blocks_to_place = []
+                for px, pz, p_delay, p_dir, p_block, p_props, p_needs_down in path:
+                    blocks_to_place.append((px, cy, pz, p_block, p_props, p_needs_down))
 
-        # Check collision and clearance
-        all_proposed_blocks = [(x,y,z,btype) for x,y,z,btype,_,_ in blocks_to_place] + note_coords
+                note_cx, note_cz = cx, cz
+                note_coords = [(note_cx, cy-1, note_cz, 'instrument'), (note_cx, cy, note_cz, 'note_block'), (note_cx, cy+1, note_cz, 'air')]
 
-        if not self.check_template_clearance(all_proposed_blocks, anchor):
-            return None
+                if is_half:
+                    blocks_to_place.append((note_cx, cy, note_cz, "minecraft:redstone_block", {}, False))
+                    note_cx += current_dir[0]
+                    note_cz += current_dir[1]
+                    facing_piston = self.get_facing(current_dir[0], current_dir[1])
+                    blocks_to_place.append((note_cx, cy, note_cz, "minecraft:sticky_piston", {"facing": facing_piston}, False))
+                    note_cx += current_dir[0]
+                    note_cz += current_dir[1]
+                    note_coords = [(note_cx, cy-1, note_cz, 'instrument'), (note_cx, cy, note_cz, 'note_block'), (note_cx, cy+1, note_cz, 'air')]
 
-        # If free, the note goes here
-        note_placement = (cx, cy, cz)
+                all_proposed_blocks = [(x,y,z,btype) for x,y,z,btype,_,_ in blocks_to_place] + note_coords
 
-        # Create a new anchor for future branches (branching sideways from the redstone wire before the note)
-        # For simplicity, we just output straight ahead from the note block position
-        new_anchors.append(RedstoneAnchor(cx, cy, cz, (dx, dz), target_tick))
+                if self.check_template_clearance(all_proposed_blocks, anchor):
+                    dist = abs(note_cx - target_x) + abs(note_cz - target_z)
+                    if dist < best_end_dist:
+                        best_end_dist = dist
 
-        return blocks_to_place, note_placement, new_anchors
+                        # Generate new anchors (branching sideways from the wire before the note, or after the note)
+                        new_anchors = []
+
+                        # The wire right before the note (or the note itself) can be a source.
+                        # For chords, we want to branch off the redstone dust that led here.
+                        # Find the last redstone wire in the path
+                        last_wire_pos = None
+                        for px, py, pz, pblock, _, _ in reversed(blocks_to_place):
+                            if pblock == "minecraft:redstone_wire":
+                                last_wire_pos = (px, pz)
+                                break
+
+                        if last_wire_pos:
+                            wx, wz = last_wire_pos
+                            # Add anchors branching off this wire
+                            for branch_dir in directions:
+                                if branch_dir != current_dir and branch_dir != (-current_dir[0], -current_dir[1]):
+                                    new_anchors.append(RedstoneAnchor(wx, cy, wz, branch_dir, target_tick))
+
+                        # Also add an anchor continuing straight after the note
+                        new_anchors.append(RedstoneAnchor(note_cx, cy, note_cz, current_dir, target_tick))
+
+                        best_end_state = (blocks_to_place, (note_cx, cy, note_cz), new_anchors)
+
+                        # Found a valid placement. We could break early, but BFS finds shortest path anyway.
+                        # Because we want closest to target, we might just accept the first valid one if we trust the heuristic,
+                        # but our BFS expands outward from the anchor, not necessarily towards the target.
+                        # Breaking here gives us the shortest wire length from anchor, which is usually compact.
+                        break
+
+                # Even if delay is 0, we could theoretically keep putting redstone wire to get closer to the target.
+                # Let's allow expanding with redstone wire.
+
+            # Expand neighbors
+            for ndx, ndz in directions:
+                # Don't go backwards
+                if ndx == -current_dir[0] and ndz == -current_dir[1]:
+                    continue
+
+                nx, nz = cx + ndx, cz + ndz
+
+                # If we still need to burn delay, we MUST place a repeater (or we can place wire to move around, but let's say repeater)
+                if delay_left > 0:
+                    burn = min(4, delay_left)
+                    facing = self.get_facing(ndx, ndz)
+                    new_path = list(path)
+                    new_path.append((cx, nz if ndx==0 else cz, burn, (ndx, ndz), "minecraft:repeater", {"facing": facing, "delay": burn}, True))
+                    # Actually, we place the block at cx, cz.
+                    new_path[-1] = (cx, cz, burn, (ndx, ndz), "minecraft:repeater", {"facing": facing, "delay": burn}, True)
+
+                    state = (nx, nz, delay_left - burn, (ndx, ndz))
+                    if state not in visited:
+                        visited.add(state)
+                        queue.append((nx, nz, delay_left - burn, (ndx, ndz), new_path))
+
+                    # Alternatively, we could just lay redstone wire to maneuver BEFORE placing the repeater
+                    new_path_wire = list(path)
+                    new_path_wire.append((cx, cz, 0, (ndx, ndz), "minecraft:redstone_wire", {}, True))
+                    state_wire = (nx, nz, delay_left, (ndx, ndz))
+                    if state_wire not in visited:
+                        visited.add(state_wire)
+                        queue.append((nx, nz, delay_left, (ndx, ndz), new_path_wire))
+                else:
+                    # Delay is 0, we can only place redstone wire to maneuver
+                    new_path = list(path)
+                    new_path.append((cx, cz, 0, (ndx, ndz), "minecraft:redstone_wire", {}, True))
+                    state = (nx, nz, 0, (ndx, ndz))
+                    if state not in visited:
+                        visited.add(state)
+                        queue.append((nx, nz, 0, (ndx, ndz), new_path))
+
+        return best_end_state
 
     def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
         """
@@ -199,7 +272,7 @@ class Layout3Brick(LayoutBase):
         placement_data = None
 
         for i, anchor in enumerate(self.free_anchors):
-            res = self.try_place_template(anchor, target_tick, is_half)
+            res = self.try_place_template(anchor, target_tick, is_half, target_x, target_z)
             if res is not None:
                 placement_data = res
                 best_anchor_index = i
@@ -226,34 +299,6 @@ class Layout3Brick(LayoutBase):
             # Remove the used anchor to prevent saturation and ghost calculations
             self.free_anchors.pop(best_anchor_index)
             self.free_anchors.extend(new_anchors)
-        else:
-            # Fallback si absolument tout est bloqué (Spiral basique d'urgence sans fil, juste pour poser la note)
-            r = 0
-            found = False
-            while not found and r < 50:
-                for dx in range(-r, r + 1):
-                    for dz in range(-r, r + 1):
-                        if abs(dx) == r or abs(dz) == r:
-                            cx = target_x + dx
-                            cz = target_z + dz
-
-                            proposed = [
-                                (cx, -1, cz, 'instrument'),
-                                (cx, 0, cz, 'note_block'),
-                                (cx, 1, cz, 'air')
-                            ]
-                            if self.check_template_clearance(proposed, None):
-                                self.tick = target_tick
-                                self.add_note(cx, 0, cz, note)
-                                self.occupy(cx, -1, cz, 'instrument')
-                                self.occupy(cx, 0, cz, 'note_block')
-                                self.occupy(cx, 1, cz, 'air')
-                                # New isolated anchor
-                                self.free_anchors.append(RedstoneAnchor(cx, 0, cz, (0, 1), target_tick))
-                                found = True
-                                break
-                    if found: break
-                r += 1
 
 
 class Layout3Track(Brick):
