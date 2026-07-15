@@ -37,21 +37,46 @@ class Layout3Brick(LayoutBase):
         self.free_anchors.append(RedstoneAnchor(0, 0, 0, (0, 1), 0))
         self.occupy(0, 0, 0, 'start')
 
-    def check_template_clearance(self, all_proposed_blocks, anchor_coord):
+    def check_template_clearance(self, all_proposed_blocks, anchor_obj):
         """
         Checks that a 3x3x3 volume around each proposed block is free,
-        ignoring blocks that are part of the template itself or the anchor block.
-        Adds extra clearance for moving parts like pistons.
+        ignoring blocks that are part of the template itself, the anchor block,
+        and the block directly feeding the anchor.
+        Adds extra clearance for moving parts like pistons, but only in their direction of movement.
         """
         proposed_coords = { (x, y, z) for x, y, z, _ in all_proposed_blocks }
 
-        for x, y, z, block_name in all_proposed_blocks:
+        anchor_coord = None
+        anchor_feeder_coord = None
+
+        if anchor_obj:
+            anchor_coord = (anchor_obj.x, anchor_obj.y, anchor_obj.z)
+            # The block feeding the anchor is directly behind it
+            anchor_feeder_coord = (anchor_obj.x - anchor_obj.direction[0], anchor_obj.y, anchor_obj.z - anchor_obj.direction[1])
+
+        for i, (x, y, z, block_name) in enumerate(all_proposed_blocks):
+
+            # We want to be a bit softer on the first block connecting to the anchor to prevent auto-sabotage
+            is_first_block = (i == 0)
+
             # Base clearance is 1 block in all directions (3x3x3)
             clearance_x, clearance_y, clearance_z = 1, 1, 1
 
             # Special clearance for moving parts (piston/redstone block)
             if "piston" in block_name or "redstone_block" in block_name:
-                clearance_x, clearance_y, clearance_z = 2, 2, 2
+                # We only need extra clearance in the direction of the movement.
+                # In our simple template projection, the movement is always along anchor.direction
+                # However, since we don't pass the direction directly here, we can infer it
+                # from the fact that the piston extends forward.
+                # To be safe and precise as requested: 1 block on inactive sides, 2 blocks on active axis.
+                if anchor_obj:
+                    if anchor_obj.direction[0] != 0: # Moving along X
+                        clearance_x = 2
+                    if anchor_obj.direction[1] != 0: # Moving along Z
+                        clearance_z = 2
+                else:
+                    # Fallback if no anchor (should not happen for pistons in normal flow)
+                    clearance_x, clearance_y, clearance_z = 2, 2, 2
 
             for dx in range(-clearance_x, clearance_x + 1):
                 for dy in range(-clearance_y, clearance_y + 1):
@@ -65,6 +90,19 @@ class Layout3Brick(LayoutBase):
                         # Ignore the anchor block we are connecting to
                         if check_coord == anchor_coord:
                             continue
+
+                        # Ignore the feeder block behind the anchor to prevent auto-sabotage
+                        if check_coord == anchor_feeder_coord:
+                            continue
+
+                        # Soften clearance for the first block: if it brushes against something far back, allow it
+                        if is_first_block and anchor_obj:
+                            # If the checked coordinate is "behind" the first block relative to direction of travel
+                            # We tolerate it to avoid snagging on the circuit that fed the anchor.
+                            if anchor_obj.direction[0] > 0 and dx < 0: continue
+                            if anchor_obj.direction[0] < 0 and dx > 0: continue
+                            if anchor_obj.direction[1] > 0 and dz < 0: continue
+                            if anchor_obj.direction[1] < 0 and dz > 0: continue
 
                         # If we hit an occupied space belonging to something else, fail
                         if check_coord in self.occupied_space:
@@ -138,7 +176,7 @@ class Layout3Brick(LayoutBase):
         # Check collision and clearance
         all_proposed_blocks = [(x,y,z,btype) for x,y,z,btype,_,_ in blocks_to_place] + note_coords
 
-        if not self.check_template_clearance(all_proposed_blocks, (anchor.x, anchor.y, anchor.z)):
+        if not self.check_template_clearance(all_proposed_blocks, anchor):
             return None
 
         # If free, the note goes here
@@ -185,8 +223,8 @@ class Layout3Brick(LayoutBase):
             self.occupy(nx, ny+1, nz, 'air')
 
             # Update Anchors
-            # We don't remove the consumed anchor because redstone wire can branch in multiple directions.
-            # In a stricter model, we might remove it if it was a repeater output.
+            # Remove the used anchor to prevent saturation and ghost calculations
+            self.free_anchors.pop(best_anchor_index)
             self.free_anchors.extend(new_anchors)
         else:
             # Fallback si absolument tout est bloqué (Spiral basique d'urgence sans fil, juste pour poser la note)
