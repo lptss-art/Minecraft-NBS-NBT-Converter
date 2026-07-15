@@ -50,26 +50,22 @@ class Brick:
             ]
             self.blocks.append(new_block)
 
-    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False, nbt_data=None):
+    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False):
         """Adds a block at the specified coordinates."""
         if properties is None:
             properties = {}
         actual_random_delay = random_delay_range if random_delay_range != -1 else 255
-        metadata = {
-            'tick': tick,
-            'random_delay_range': actual_random_delay,
-            'layer': 0,
-            'needs_down': needs_down,
-            'needs_up': needs_up
-        }
-        if nbt_data:
-            metadata.update(nbt_data)
-
         self.blocks.append({
             'pos': [x, y, z],
             'block_name': block_name,
             'properties': properties,
-            'metadata': metadata
+            'metadata': {
+                'tick': tick,
+                'random_delay_range': actual_random_delay,
+                'layer': 0,
+                'needs_down': needs_down,
+                'needs_up': needs_up
+            }
         })
 
     def clean(self, floor_block_name=None, floor_properties=None):

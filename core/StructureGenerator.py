@@ -3,6 +3,7 @@ from core.customNBT import CustomNBT
 from core.brick import Brick
 from core.Layout1 import Layout1Track,Layout1CompleteTrack
 from core.Layout2 import Layout2Track
+from core.Layout3 import Layout3Track
 
 class StructureGenerator:
     """
@@ -19,17 +20,10 @@ class StructureGenerator:
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
         if "Layout1" in self.layout_type:
             track = Layout1CompleteTrack()
+        elif "Layout3" in self.layout_type:
+            track = Layout3Track()
         else:
-            # Check if branch shape configuration is requested in palettes ('I' or 'L')
-            branch_shape = 'I'
-            if self.palettes and 'branch_shape' in self.palettes:
-                branch_shape = self.palettes['branch_shape']
-
-            # For backward compatibility, translate boolean 'is_symmetric' if it exists
-            if self.palettes and 'is_symmetric' in self.palettes:
-                 branch_shape = 'I' if self.palettes['is_symmetric'] else 'L'
-
-            track = Layout2Track(branch_shape=branch_shape)
+            track = Layout2Track()
 
         track.build_sequence(self.df_notes)
         self.global_data = track

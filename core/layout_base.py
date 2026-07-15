@@ -22,22 +22,19 @@ class LayoutBase(Brick):
         instruments = list(CustomNBT.minecraft_instruments.values())
         instr_name = instruments[instr_index] if instr_index < len(instruments) else "minecraft:dirt"
 
-        gravity_blocks = ["minecraft:sand", "minecraft:red_sand", "minecraft:gravel"]
-        instr_needs_down = instr_name in gravity_blocks
-
         brick.add_block(x, y, z, "minecraft:note_block", {"note": note_val}, tick=self.tick)
-        brick.add_block(x, y - 1, z, instr_name, {}, tick=self.tick, needs_down=instr_needs_down)
+        brick.add_block(x, y - 1, z, instr_name, {}, tick=self.tick, needs_down=True)
         brick.add_block(x, y + 1, z, "minecraft:air", {}, tick=self.tick)
 
     def add_note(self, x, y, z, note):
         """Adds a note block, instrument block below, and air above to this brick."""
         self.add_note_to_brick(self, x, y, z, note)
 
-    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False, nbt_data=None):
+    def add_block(self, x, y, z, block_name, properties=None, tick=0, random_delay_range=-1, needs_down=False, needs_up=False):
         """Adds a generic block to the layout data."""
         if block_name is None:
             return
-        super().add_block(x, y, z, block_name, properties=properties, tick=self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up, nbt_data=nbt_data)
+        super().add_block(x, y, z, block_name, properties=properties, tick=self.tick, random_delay_range=random_delay_range, needs_down=needs_down, needs_up=needs_up)
 
     def write_nbt(self, nbt_handler):
         """Writes the layout data to the customNBT object."""

@@ -153,9 +153,6 @@ class CustomNBT:
                     block['nbt'][key] = TAG_Int(value)
                 elif isinstance(value, str):
                     block['nbt'][key] = TAG_String(value)
-                elif hasattr(value, "tag_info"):
-                    import copy
-                    block['nbt'][key] = copy.deepcopy(value)
 
         self.nbtfile['blocks'].append(block)
         

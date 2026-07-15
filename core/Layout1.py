@@ -89,34 +89,10 @@ class BaseLaneBrick(LayoutBase):
 
         # --- CAS SPÉCIFIQUE : START ---
         if start:
-            from nbt.nbt import TAG_List, TAG_Compound, TAG_String, TAG_Byte
             # Le point culminant (le rail) est posé exactement à Y = 0
 
             
             self.add_block(0, 0, 0, "minecraft:polished_blackstone_bricks") # Bloc d'arrêt sur le rail
-
-            # Chest with items
-            items = TAG_List(TAG_Compound)
-
-            item1 = TAG_Compound()
-            item1['Slot'] = TAG_Byte(0)
-            item1['id'] = TAG_String("minecraft:coal")
-            item1['Count'] = TAG_Byte(1)
-            items.append(item1)
-
-            item2 = TAG_Compound()
-            item2['Slot'] = TAG_Byte(1)
-            item2['id'] = TAG_String("minecraft:minecart")
-            item2['Count'] = TAG_Byte(1)
-            items.append(item2)
-
-            item3 = TAG_Compound()
-            item3['Slot'] = TAG_Byte(2)
-            item3['id'] = TAG_String("minecraft:furnace_minecart")
-            item3['Count'] = TAG_Byte(1)
-            items.append(item3)
-
-            self.add_block(0, 1, 0, "minecraft:chest", properties={"facing": "east"}, nbt_data={"Items": items})
 
             # Descente du signal (les coordonnées Y ont toutes été décalées de -13)
             self.add_block(6, 0, 0, "minecraft:detector_rail", {"shape": "east_west"})
