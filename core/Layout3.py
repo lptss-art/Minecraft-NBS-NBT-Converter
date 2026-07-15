@@ -3,71 +3,178 @@ import math
 from core.layout_base import LayoutBase
 from core.brick import Brick
 
+class RedstoneAnchor:
+    def __init__(self, x, y, z, direction, tick):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.direction = direction # (dx, dz)
+        self.tick = tick
+
+    def get_score(self, target_x, target_z, target_tick, alpha=5.0):
+        """
+        Score = Distance Physique + alpha * abs(Différence de tick)
+        On privilégie une borne proche physiquement et temporellement.
+        """
+        dist = abs(self.x - target_x) + abs(self.z - target_z)
+        time_penalty = alpha * abs(target_tick - self.tick)
+        return dist + time_penalty
+
 class Layout3Brick(LayoutBase):
     """
     Manages the organic layout (Layout 3).
-    Tries to place note blocks and redstone infrastructure as close as possible to a target coordinate.
+    Dynamic opportunistic generator using a score system and backtracking.
     """
     def __init__(self):
         super().__init__()
-        # Grid to keep track of occupied coordinates
-        # format: (x, y, z) -> {'type': str, 'tick': int, 'signal_in': list, 'signal_out': list}
+        # Grid to keep track of occupied coordinates: (x, y, z) -> type
         self.occupied_space = {}
+        # Available connection points
+        self.free_anchors = []
 
-    def is_free(self, x, y, z):
-        """Checks if a column of 3 blocks (y-1, y, y+1) is free for a note block."""
-        if (x, y-1, z) in self.occupied_space: return False
-        if (x, y, z) in self.occupied_space: return False
-        if (x, y+1, z) in self.occupied_space: return False
+        # Initialize the start of the circuit (e.g., a button at 0,0,0)
+        # Assuming the signal starts at tick 0 heading positive Z
+        self.free_anchors.append(RedstoneAnchor(0, 0, 0, (0, 1), 0))
+        self.occupy(0, 0, 0, 'start')
+
+    def is_free(self, coords):
+        """Checks if a list of (x, y, z) coordinates are free."""
+        for x, y, z in coords:
+            if (x, y, z) in self.occupied_space: return False
         return True
 
-    def occupy(self, x, y, z, block_type, tick):
-        """Marks a coordinate as occupied with metadata."""
-        self.occupied_space[(x, y, z)] = {
-            'type': block_type,
-            'tick': tick,
-            'signal_in': [],
-            'signal_out': []
-        }
+    def occupy(self, x, y, z, block_type):
+        """Marks a coordinate as occupied."""
+        self.occupied_space[(x, y, z)] = block_type
 
-    def add_note_organic(self, note, target_x, target_z, tick, is_half):
+    def try_place_template(self, anchor, target_tick, is_half):
         """
-        Finds the closest available spot around (target_x, target_z) to place a note block.
+        Tries to generate a redstone template from the anchor to satisfy target_tick.
+        Returns (blocks_to_place, new_anchors) if successful, else None.
         """
-        y = 0
-        r = 0
-        found = False
-        place_x, place_z = target_x, target_z
+        tick_diff = target_tick - anchor.tick
 
-        # Basic spiral search for the closest free spot
-        while not found and r < 100:
-            for dx in range(-r, r + 1):
-                for dz in range(-r, r + 1):
-                    # Check only the perimeter of the current radius
-                    if abs(dx) == r or abs(dz) == r:
-                        cx = target_x + dx
-                        cz = target_z + dz
+        # We can't connect to a future anchor
+        if tick_diff < 0:
+            return None
 
-                        if self.is_free(cx, y, cz):
-                            place_x, place_z = cx, cz
-                            found = True
-                            break
-                if found:
-                    break
-            r += 1
+        blocks_to_place = []
+        new_anchors = []
 
-        if found:
-            self.tick = tick
-            # Place the note block visually
-            self.add_note(place_x, y, place_z, note)
+        cx, cy, cz = anchor.x, anchor.y, anchor.z
+        dx, dz = anchor.direction
 
-            # Register in the grid
-            self.occupy(place_x, y, place_z, 'note_block', tick)
-            self.occupy(place_x, y - 1, place_z, 'instrument', tick)
-            self.occupy(place_x, y + 1, place_z, 'air', tick)
+        # Advance 1 block from the anchor
+        cx += dx
+        cz += dz
 
-            # TODO: Poser l'infrastructure redstone (repéteurs, poudre, pistons pour demi-notes)
-            # et gérer la connexion (direction du signal).
+        # Simple straight line template with repeaters to burn delay
+        # In a full pathfinding A*, this would route around obstacles.
+        # Here we do a straight projection in the anchor's direction.
+
+        delay_left = tick_diff
+
+        # 1. Route the delay
+        while delay_left > 0:
+            burn = min(4, delay_left)
+            # Facing is opposite to direction of travel in Minecraft
+            facing = 'north' if dz > 0 else 'south' if dz < 0 else 'west' if dx > 0 else 'east'
+
+            blocks_to_place.append((cx, cy, cz, "minecraft:repeater", {"facing": facing, "delay": burn}, True))
+            delay_left -= burn
+
+            cx += dx
+            cz += dz
+
+        # 2. Place Note Infrastructure
+        # Needs 3 blocks of height clearance
+        note_coords = [(cx, cy-1, cz), (cx, cy, cz), (cx, cy+1, cz)]
+
+        if is_half:
+            # Need room for piston and redstone block (demi logic)
+            blocks_to_place.append((cx, cy, cz, "minecraft:redstone_block", {}, False))
+            cx += dx
+            cz += dz
+            facing_piston = 'north' if dz < 0 else 'south' if dz > 0 else 'west' if dx < 0 else 'east'
+            blocks_to_place.append((cx, cy, cz, "minecraft:sticky_piston", {"facing": facing_piston}, False))
+            cx += dx
+            cz += dz
+            note_coords = [(cx, cy-1, cz), (cx, cy, cz), (cx, cy+1, cz)]
+
+        # Check collision for all blocks we want to place
+        all_coords = [(x,y,z) for x,y,z,_,_,_ in blocks_to_place] + note_coords
+        if not self.is_free(all_coords):
+            return None
+
+        # If free, the note goes here
+        note_placement = (cx, cy, cz)
+
+        # Create a new anchor for future branches (branching sideways from the redstone wire before the note)
+        # For simplicity, we just output straight ahead from the note block position
+        new_anchors.append(RedstoneAnchor(cx, cy, cz, (dx, dz), target_tick))
+
+        return blocks_to_place, note_placement, new_anchors
+
+    def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
+        """
+        Dynamically finds the best anchor and routes to place the note block.
+        """
+        # Sort anchors by score (cost/benefit)
+        self.free_anchors.sort(key=lambda a: a.get_score(target_x, target_z, target_tick))
+
+        best_anchor_index = -1
+        placement_data = None
+
+        for i, anchor in enumerate(self.free_anchors):
+            res = self.try_place_template(anchor, target_tick, is_half)
+            if res is not None:
+                placement_data = res
+                best_anchor_index = i
+                break
+
+        if placement_data is not None:
+            blocks_to_place, note_pos, new_anchors = placement_data
+
+            # Commit the template to the grid and the NBT array
+            self.tick = target_tick
+
+            for bx, by, bz, btype, props, needs_down in blocks_to_place:
+                self.occupy(bx, by, bz, btype)
+                self.add_block(bx, by, bz, btype, properties=props, tick=self.tick, needs_down=needs_down)
+
+            # Place the Note
+            nx, ny, nz = note_pos
+            self.add_note(nx, ny, nz, note)
+            self.occupy(nx, ny-1, nz, 'instrument')
+            self.occupy(nx, ny, nz, 'note_block')
+            self.occupy(nx, ny+1, nz, 'air')
+
+            # Update Anchors
+            # We don't remove the consumed anchor because redstone wire can branch in multiple directions.
+            # In a stricter model, we might remove it if it was a repeater output.
+            self.free_anchors.extend(new_anchors)
+        else:
+            # Fallback si absolument tout est bloqué (Spiral basique d'urgence sans fil, juste pour poser la note)
+            r = 0
+            found = False
+            while not found and r < 50:
+                for dx in range(-r, r + 1):
+                    for dz in range(-r, r + 1):
+                        if abs(dx) == r or abs(dz) == r:
+                            cx = target_x + dx
+                            cz = target_z + dz
+                            if self.is_free([(cx, 0, cz), (cx, -1, cz), (cx, 1, cz)]):
+                                self.tick = target_tick
+                                self.add_note(cx, 0, cz, note)
+                                self.occupy(cx, -1, cz, 'instrument')
+                                self.occupy(cx, 0, cz, 'note_block')
+                                self.occupy(cx, 1, cz, 'air')
+                                # New isolated anchor
+                                self.free_anchors.append(RedstoneAnchor(cx, 0, cz, (0, 1), target_tick))
+                                found = True
+                                break
+                    if found: break
+                r += 1
 
 
 class Layout3Track(Brick):
@@ -80,7 +187,7 @@ class Layout3Track(Brick):
     def build_sequence(self, df_notes):
         brick = Layout3Brick()
 
-        # Target coordinates, staying at (0, 0) for now as requested.
+        # Target coordinates: (0, 0)
         target_x, target_z = 0, 0
 
         for tick in df_notes.index:
@@ -93,7 +200,6 @@ class Layout3Track(Brick):
             for note in notes_demi:
                 brick.add_note_organic(note, target_x, target_z, int(tick), is_half=True)
 
-            # À l'avenir: target_x, target_z pourront être mis à jour ici
-            # pour suivre la position d'un minecart, etc.
+            # target_x, target_z updates could go here
 
         self.add_data(brick)
