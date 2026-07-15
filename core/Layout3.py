@@ -273,11 +273,16 @@ class Layout3Track(Brick):
             notes_entier = df_notes.loc[tick]['note entier']
             notes_demi = df_notes.loc[tick]['note demi']
 
-            for note in notes_entier:
-                brick.add_note_organic(note, target_x, target_z, int(tick), is_half=False)
+            if notes_entier is not None:
+                # Handle cases where pandas might have inserted a NaN instead of None
+                if not isinstance(notes_entier, float):
+                    for note in notes_entier:
+                        brick.add_note_organic(note, target_x, target_z, int(tick), is_half=False)
 
-            for note in notes_demi:
-                brick.add_note_organic(note, target_x, target_z, int(tick), is_half=True)
+            if notes_demi is not None:
+                if not isinstance(notes_demi, float):
+                    for note in notes_demi:
+                        brick.add_note_organic(note, target_x, target_z, int(tick), is_half=True)
 
             # target_x, target_z updates could go here
 
