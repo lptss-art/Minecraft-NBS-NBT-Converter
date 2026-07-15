@@ -4,6 +4,7 @@ import pandas as pd
 from core.MusicData import Note
 from core.Layout2 import Layout2Brick
 from core.Layout1 import Layout1Brick, Layout1Track, BaseLaneBrick, Layout1CompleteTrack
+from core.Layout3 import Layout3Track
 from core.customNBT import CustomNBT
 from core.StructureGenerator import StructureGenerator
 
@@ -120,6 +121,25 @@ def generate_test_blocks(export_dir="output"):
     spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_layout1_complete_track")
     test_index += 1
     
+    # --- Test 9: Complete Layout 3 (Organic) ---
+    data_seq_l3 = {
+        'tick': list(range(0, 10, 2)),
+        'note entier': [make_notes(random.randint(1, 3)) for _ in range(5)],
+        'note demi': [make_notes(random.randint(0, 2)) for _ in range(5)]
+    }
+    df_seq_l3 = pd.DataFrame(data_seq_l3).set_index('tick')
+
+    nbt_l3 = CustomNBT()
+    gen_seq_l3 = StructureGenerator(df_seq_l3, layout_type="Layout3")
+    gen_seq_l3.generate_blocks()
+
+    gen_seq_l3.global_data.clean("minecraft:stone")
+
+    gen_seq_l3.global_data.write_nbt(nbt_l3)
+    nbt_l3.write_file(os.path.join(export_dir, "debug_assembly_layout3.nbt"))
+    spawner_nbt.add_structure_block([test_index * 15, 0, 0], "debug_assembly_layout3")
+    test_index += 1
+
     # Output the master spawner
     index_stone = spawner_nbt.get_index_safe("minecraft:stone")
     index_button = spawner_nbt.get_index_safe("minecraft:stone_button", {"face": "floor", "facing": "east"})

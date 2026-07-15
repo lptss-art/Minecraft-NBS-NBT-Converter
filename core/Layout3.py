@@ -37,6 +37,40 @@ class Layout3Brick(LayoutBase):
         self.free_anchors.append(RedstoneAnchor(0, 0, 0, (0, 1), 0))
         self.occupy(0, 0, 0, 'start')
 
+    def check_template_clearance(self, all_proposed_blocks, anchor_coord):
+        """
+        Checks that a 3x3x3 volume around each proposed block is free,
+        ignoring blocks that are part of the template itself or the anchor block.
+        Adds extra clearance for moving parts like pistons.
+        """
+        proposed_coords = { (x, y, z) for x, y, z, _ in all_proposed_blocks }
+
+        for x, y, z, block_name in all_proposed_blocks:
+            # Base clearance is 1 block in all directions (3x3x3)
+            clearance_x, clearance_y, clearance_z = 1, 1, 1
+
+            # Special clearance for moving parts (piston/redstone block)
+            if "piston" in block_name or "redstone_block" in block_name:
+                clearance_x, clearance_y, clearance_z = 2, 2, 2
+
+            for dx in range(-clearance_x, clearance_x + 1):
+                for dy in range(-clearance_y, clearance_y + 1):
+                    for dz in range(-clearance_z, clearance_z + 1):
+                        check_coord = (x + dx, y + dy, z + dz)
+
+                        # Ignore self-collisions within the template being placed
+                        if check_coord in proposed_coords:
+                            continue
+
+                        # Ignore the anchor block we are connecting to
+                        if check_coord == anchor_coord:
+                            continue
+
+                        # If we hit an occupied space belonging to something else, fail
+                        if check_coord in self.occupied_space:
+                            return False
+        return True
+
     def is_free(self, coords):
         """Checks if a list of (x, y, z) coordinates are free."""
         for x, y, z in coords:
@@ -88,7 +122,7 @@ class Layout3Brick(LayoutBase):
 
         # 2. Place Note Infrastructure
         # Needs 3 blocks of height clearance
-        note_coords = [(cx, cy-1, cz), (cx, cy, cz), (cx, cy+1, cz)]
+        note_coords = [(cx, cy-1, cz, 'instrument'), (cx, cy, cz, 'note_block'), (cx, cy+1, cz, 'air')]
 
         if is_half:
             # Need room for piston and redstone block (demi logic)
@@ -99,11 +133,12 @@ class Layout3Brick(LayoutBase):
             blocks_to_place.append((cx, cy, cz, "minecraft:sticky_piston", {"facing": facing_piston}, False))
             cx += dx
             cz += dz
-            note_coords = [(cx, cy-1, cz), (cx, cy, cz), (cx, cy+1, cz)]
+            note_coords = [(cx, cy-1, cz, 'instrument'), (cx, cy, cz, 'note_block'), (cx, cy+1, cz, 'air')]
 
-        # Check collision for all blocks we want to place
-        all_coords = [(x,y,z) for x,y,z,_,_,_ in blocks_to_place] + note_coords
-        if not self.is_free(all_coords):
+        # Check collision and clearance
+        all_proposed_blocks = [(x,y,z,btype) for x,y,z,btype,_,_ in blocks_to_place] + note_coords
+
+        if not self.check_template_clearance(all_proposed_blocks, (anchor.x, anchor.y, anchor.z)):
             return None
 
         # If free, the note goes here
@@ -163,7 +198,13 @@ class Layout3Brick(LayoutBase):
                         if abs(dx) == r or abs(dz) == r:
                             cx = target_x + dx
                             cz = target_z + dz
-                            if self.is_free([(cx, 0, cz), (cx, -1, cz), (cx, 1, cz)]):
+
+                            proposed = [
+                                (cx, -1, cz, 'instrument'),
+                                (cx, 0, cz, 'note_block'),
+                                (cx, 1, cz, 'air')
+                            ]
+                            if self.check_template_clearance(proposed, None):
                                 self.tick = target_tick
                                 self.add_note(cx, 0, cz, note)
                                 self.occupy(cx, -1, cz, 'instrument')
