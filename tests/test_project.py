@@ -6,7 +6,7 @@ import numpy as np
 from core.brick import Brick
 from core.customNBT import CustomNBT
 from core.Layout2 import Layout2Brick
-from core.Layout1 import Layout1Brick, Layout1Track
+from core.Layout1 import Layout1Brick, Layout1CompleteTrack
 from core.Layout2 import Layout2Track
 from core.MusicData import prep_data, Note
 import core.ReadNBS as ReadNBS
@@ -94,7 +94,7 @@ class TestLayout1(unittest.TestCase):
 
 class TestTrackAssembly(unittest.TestCase):
     def test_layout1_track_assembly(self):
-        track = Layout1Track()
+        track = Layout1CompleteTrack()
 
         # Simulate df_notes
         data = {
@@ -104,6 +104,7 @@ class TestTrackAssembly(unittest.TestCase):
         df_notes = pd.DataFrame(data, index=[0, 2, 4])
 
         track.build_sequence(df_notes)
+        track.clean("minecraft:stone")
         self.assertTrue(len(track.blocks) > 0)
 
     def test_layout2_track_assembly(self):
@@ -117,6 +118,7 @@ class TestTrackAssembly(unittest.TestCase):
         df_notes = pd.DataFrame(data, index=[0, 2, 4, 6, 8, 10])
 
         track.build_sequence(df_notes)
+        track.clean("minecraft:stone")
         self.assertTrue(len(track.blocks) > 0)
 
 class TestLayout2(unittest.TestCase):
