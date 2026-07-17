@@ -1,13 +1,38 @@
+"""
+Layout 3 - Architecture "Shadowing" & Depth-First Search (DFS)
+
+Ce module génère des circuits redstone de manière organique.
+Au lieu de modifier directement le monde (ce qui oblige à des copies complètes coûteuses en mémoire),
+il utilise un système de "Calques" (Shadowing) via la pile d'exécution récursive.
+
+1. La gestion des points de départ (Les Ancres) :
+   - Anchor : Représente un bout de câble redstone libre (point de départ potentiel).
+   - AnchorManagerLayer : Gère les ancres de façon virtuelle sur des calques superposés.
+
+2. La gestion des collisions et court-circuits :
+   - ExclusionMapLayer : "Radar" à collisions qui empêche les câbles de fusionner (crosstalk).
+     Il y a un calque pour les émetteurs (redstone) et un pour les récepteurs (noteblocks).
+
+3. Le Moteur de Construction :
+   - Layout3Brick : Le chef d'orchestre qui lit la musique et lance le moteur de recherche (dfs_find_path).
+   - dfs_find_path : Explore les chemins possibles en empilant des calques virtuels. Si un chemin est valide,
+     il le "commit" (le valide) dans le vrai monde.
+"""
 import numpy as np
 import math
 from core.layout_base import LayoutBase
 from core.brick import Brick
 
+
 class Anchor:
+    """
+    Une ancre représente un bout de câble redstone laissé libre.
+    C'est un point de départ potentiel depuis lequel on peut prolonger le circuit.
+    """
     def __init__(self, x, z, tick):
         self.x = x
         self.z = z
-        self.tick = tick
+        self.tick = tick # Le moment (tick) où le signal arrive ici
         # Les 4 directions cardinales (Nord, Sud, Est, Ouest)
         self.free_directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
 
@@ -19,6 +44,10 @@ class Anchor:
 
 
 class AnchorManagerLayer:
+    """
+    Gère toutes les ancres disponibles de façon "virtuelle" via des calques superposés (Shadowing).
+    Lors de l'exploration d'un chemin, on crée un nouveau calque pointant vers son parent.
+    """
     def __init__(self, parent=None):
         self.parent = parent
         self.active_anchors = []
@@ -31,6 +60,7 @@ class AnchorManagerLayer:
         return new_anchor
 
     def get_all_active_anchors(self):
+        """Remonte tout l'historique des calques parents pour lister toutes les ancres encore utilisables."""
         anchors = list(self.active_anchors)
         if self.parent:
             parent_anchors = self.parent.get_all_active_anchors()
@@ -40,6 +70,7 @@ class AnchorManagerLayer:
         return anchors
 
     def get_best_anchor(self, target_x, target_z, target_tick):
+        """Utilise le score des ancres pour trouver la meilleure parmi celles qui ont encore des directions libres."""
         all_anchors = self.get_all_active_anchors()
         # Filter anchors that still have free directions (considering layers)
         valid_anchors = []
@@ -55,6 +86,7 @@ class AnchorManagerLayer:
         return valid_anchors[0]
 
     def get_free_directions(self, anchor):
+        """Regarde, pour une ancre donnée, quelles directions (N, S, E, O) n'ont pas encore été essayées."""
         base_free = list(anchor.free_directions)
         
         # Traverse up from self to gather consumed directions
@@ -69,6 +101,7 @@ class AnchorManagerLayer:
         return base_free
 
     def consume_direction(self, anchor, direction):
+        """Note sur ce calque qu'une direction a été essayée (prise ou échouée). Si l'ancre n'a plus de directions, elle est supprimée."""
         if anchor not in self.consumed_directions:
             self.consumed_directions[anchor] = []
         self.consumed_directions[anchor].append(direction)
@@ -84,6 +117,10 @@ class AnchorManagerLayer:
 
 
 class ExclusionMapLayer:
+    """
+    Radar à collisions et à court-circuits fonctionnant par calques (Shadowing).
+    Sépare la logique des émetteurs (redstone/répéteurs) des récepteurs (noteblocks/pistons).
+    """
     def __init__(self, parent=None, layer_type="redstone"):
         self.parent = parent
         self.layer_type = layer_type
@@ -101,6 +138,11 @@ class ExclusionMapLayer:
         })
 
     def occupy(self, x, y, z, block_type, tick=None, dx=0, dz=0):
+        """
+        Actionne la pose d'un bloc physique.
+        Magie des exclusions : applique automatiquement des interdictions autour du bloc posé
+        (ex: 4 cases autour pour la redstone) pour éviter que les câbles ne fusionnent (crosstalk).
+        """
         self.occupied_blocks[(x, y, z)] = block_type
 
         if tick is None:
@@ -120,6 +162,7 @@ class ExclusionMapLayer:
                     self.mark_impossible(x + nx, z + nz, x, z, tick)
 
     def is_blocked(self, target_x, target_z, current_tick):
+        """Vérifie si on a le droit de poser un câble ici en s'assurant qu'il n'y a pas de conflit de tick (court-circuit)."""
         if (target_x, target_z) in self.blocked_positions:
             for conflict in self.blocked_positions[(target_x, target_z)]:
                 if conflict['tick'] != current_tick:
@@ -129,6 +172,7 @@ class ExclusionMapLayer:
         return False
 
     def is_physically_occupied(self, x, y, z):
+        """Vérifie si un bloc dur (câble, instrument, air) est déjà présent physiquement à cet endroit précis."""
         if (x, y, z) in self.occupied_blocks:
             return self.occupied_blocks[(x, y, z)]
         if self.parent:
@@ -138,6 +182,10 @@ class ExclusionMapLayer:
 
 
 class Layout3Brick(LayoutBase):
+    """
+    Chef d'orchestre de la génération organique.
+    Contient le point de départ du circuit et les calques "racines" (le monde réel).
+    """
     """
     Manages the organic layout (Layout 3).
     Dynamic opportunistic generator using a score system and 2D backtracking.
@@ -159,6 +207,11 @@ class Layout3Brick(LayoutBase):
 
 
     def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
+        """
+        Tente de poser une note au bon tick.
+        Lance la recherche récursive (DFS). Si elle réussit, récupère la liste des commandes validées
+        et les exécute "pour de vrai" dans le monde réel (les calques racines).
+        """
         commands_list = []
         success = self.dfs_find_path(
             target_x, target_z, target_tick, note, is_half,
@@ -204,6 +257,13 @@ class Layout3Brick(LayoutBase):
         return True
 
     def dfs_find_path(self, target_x, target_z, target_tick, note, is_half, current_redstone, current_notes, current_anchors, commands_list):
+        """
+        Le Cerveau : Fonction récursive qui empile les calques et simule les chemins.
+        - S'il manque du temps : simule un répéteur (try_place_repeater_sim)
+        - Si on est en avance : simule de la redstone pour avancer (try_expand_redstone_sim)
+        - Si timing parfait : simule la note finale (try_place_note_setup_sim)
+        S'annule proprement (Backtracking) en cas d'échec d'une branche.
+        """
         all_anchors = current_anchors.get_all_active_anchors()
         valid_anchors = []
         for a in all_anchors:
