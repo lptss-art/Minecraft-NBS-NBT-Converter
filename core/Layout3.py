@@ -288,6 +288,8 @@ class Layout3Brick(LayoutBase):
             'is_half': is_half
         }
         
+        self.current_exploration_budget = 300
+        
         success = self.start_pathfinding(
             target_data,
             self.impossible_redstone, self.impossible_notes, self.anchor_manager,
@@ -539,6 +541,11 @@ class Layout3Brick(LayoutBase):
         Le Travailleur (Cerveau) : Fonction récursive propre séparant la décision de l'exécution.
         """
         
+        self.current_exploration_budget -= 1
+        if self.current_exploration_budget <= 0:
+            return False # Budget épuisé : cet endroit est trop compliqué, on abandonne cette ancre !
+        
+        
         profondeur = len(commands_list)
         # Le \r permet de réécrire sur la même ligne dans la console
         self._print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur}   ", end="\r")
@@ -585,7 +592,7 @@ class Layout3Brick(LayoutBase):
 
 
 
-            if random.random() < 0.2: 
+            if random.random() < 0.1: 
                 actions_to_try.append('redstone')
 
 
@@ -630,7 +637,7 @@ class Layout3Brick(LayoutBase):
 
 
             # --- NOUVEAU : Application de la limite de signal ---
-            if redstone_chain_length >= 8:
+            if redstone_chain_length >= 4:
                 # Le signal est épuisé ! On s'interdit formellement de prolonger le câble.
                 if 'redstone' in actions_to_try:
                     actions_to_try.remove('redstone')
