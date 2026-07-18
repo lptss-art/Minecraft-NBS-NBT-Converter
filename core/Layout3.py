@@ -548,7 +548,7 @@ class Layout3Brick(LayoutBase):
         
         profondeur = len(commands_list)
         # Le \r permet de réécrire sur la même ligne dans la console
-        self._print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur}   ", end="\r")
+        self._print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur} | Budget : {self.current_exploration_budget}   ", end="\r")
         
         
         # On calcule le temps restant dès le début, car cela va influencer notre stratégie de tri
