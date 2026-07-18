@@ -34,10 +34,10 @@ class Anchor:
         self.is_half = is_half
         self.free_directions = list(allowed_directions)
 
-    def get_score(self, target_x, target_z, target_tick):
+    def get_score(self, target_x, target_z, target_tick, target_is_half):
         """
         Calcule le coût de cette ancre (le plus petit score est le meilleur).
-        Utilise une distance classique (Euclidienne) et favorise fortement le bon tick.
+        Utilise une distance classique (Euclidienne) et favorise fortement le bon tick ET demi-tick.
         """
         # Distance classique (ligne droite)
         dist = math.hypot(self.x - target_x, self.z - target_z)
@@ -46,11 +46,15 @@ class Anchor:
         
         # Pénalité temporelle
         if tick_diff == 0:
-            # Timing parfait : on donne un bonus pour forcer l'algo à l'essayer en premier
-            time_penalty = -10.0 
+            if self.is_half == target_is_half:
+                # Timing parfait ET statut de demi-tick parfait : Priorité absolue
+                time_penalty = -20.0 
+            else:
+                # Bon tick, mais le statut demi-tick est différent (nécessitera un piston).
+                # C'est une bonne option, mais strictement inférieure à un match parfait.
+                time_penalty = -5.0
         elif tick_diff > 0:
             # En retard : on pénalise. 
-            # faible valeur = plus susceptible de mettre des repeteurs pour recuperer le signal autre part
             time_penalty = 10 * tick_diff
         else:
             # Trop tard (tick dépassé) : ce chemin est temporellement impossible.
@@ -122,7 +126,7 @@ class AnchorManagerLayer:
         if not valid_anchors:
             return None
             
-        valid_anchors.sort(key=lambda a: a.get_score(target_x, target_z, target_tick))
+        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick'], target_data['is_half']))
         return valid_anchors[0]
 
     def get_free_directions(self, anchor):
@@ -256,7 +260,11 @@ class Layout3Brick(LayoutBase):
         self.impossible_redstone.occupy(-1, -1, 'start_block',-1)
         self.impossible_notes.occupy(-1, -1, 'start_block',-1)
         
-        
+        # --- DEBUG TRACKING ---
+        self.debug_total_ticks = 0
+        self.debug_current_tick = 0
+        self.debug_total_notes = 0
+        self.debug_current_note = 0
 
     def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
         """
@@ -281,8 +289,11 @@ class Layout3Brick(LayoutBase):
         )
 
         if not success:
-            print(f"Échec critique : Impossible de placer la note '{note}' au tick {target_tick}")
+            print(f"\nÉchec critique : Impossible de placer la note '{note}' au tick {target_tick}")
             return False
+        else:
+            # Succès ! On passe à la ligne suivante dans la console
+            print(f"\nSuccès pour la note {note} (Tick {target_tick})")
             
         # ==========================================
         # COMMIT DES COMMANDES DANS LE MONDE RÉEL
@@ -339,28 +350,34 @@ class Layout3Brick(LayoutBase):
             elif action == 'piston':
                 _, x, z, tick, dx, dz, source_anchor, direction = cmd
                 
-                x1, z1 = x, z                     # Piston
-                x2, z2 = x + dx, z + dz           # Bloc de redstone
-                x3, z3 = x + 2*dx, z + 2*dz       # Câble redstone (+ ancre)
+                x1, z1 = x, z                 # Câble
+                x2, z2 = x + dx, z + dz       # Piston
+                x3, z3 = x + 2*dx, z + 2*dz   # Bloc redstone
+                x4, z4 = x + 3*dx, z + 3*dz   # Air
+                x5, z5 = x + 4*dx, z + 4*dz   # Sortie Câble
                 facing = self.get_facing(-dx, -dz)
                 
-                # +1 Piston (comportement de répéteur pour l'exclusion)
-                self.impossible_redstone.occupy(x1, z1, 'repeater', tick=tick, dx=dx, dz=dz, is_half=False)
-                self.impossible_notes.occupy(x1, z1, 'repeater', tick=tick, dx=dx, dz=dz, is_half=False)
-                self.add_block(x1, self.y_level, z1, "minecraft:sticky_piston", properties={"facing": facing}, needs_down=True)
-                
-                # +2 Bloc de redstone (agît comme un émetteur à tick=0)
-                self.impossible_redstone.occupy(x2, z2, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
-                self.impossible_notes.occupy(x2, z2, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
-                self.add_block(x2, self.y_level, z2, "minecraft:redstone_block")
-                
-                # +3 Câble de redstone sortant en demi-tick
-                self.impossible_redstone.occupy(x3, z3, 'redstone_wire', tick=tick, dx=dx, dz=dz, is_half=True)
-                self.impossible_notes.occupy(x3, z3, 'redstone_wire', tick=tick, dx=dx, dz=dz, is_half=True)
+                # +0 Câble d'entrée
+                self.impossible_redstone.occupy(x1, z1, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+                self.add_block(x1, self.y_level, z1, "minecraft:redstone_wire", tick=tick, needs_down=True)
 
+                # +1 Piston
+                self.impossible_redstone.occupy(x2, z2, 'repeater', tick=tick, dx=dx, dz=dz, is_half=False)
+                self.add_block(x2, self.y_level, z2, "minecraft:sticky_piston", properties={"facing": facing}, needs_down=True)
                 
-                # Ancre associée au +3
-                self.anchor_manager.add_anchor(x3, z3, tick, dx=dx, dz=dz, block_type="repeater", is_half=True)
+                # +2 Bloc de redstone
+                self.impossible_redstone.occupy(x3, z3, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+                self.add_block(x3, self.y_level, z3, "minecraft:redstone_block")
+                
+                # +3 Espace d'extension (on l'occupe dans la carte des collisions, mais on ne pose rien dans le monde)
+                self.impossible_redstone.occupy(x4, z4, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+
+                # +4 Câble de redstone sortant en demi-tick
+                self.impossible_redstone.occupy(x5, z5, 'redstone_wire', tick=tick, dx=dx, dz=dz, is_half=True)
+                self.add_block(x5, self.y_level, z5, "minecraft:redstone_wire", tick=tick, needs_down=True)
+                
+                # Ancre associée au +4
+                self.anchor_manager.add_anchor(x5, z5, tick, dx=dx, dz=dz, block_type="repeater", is_half=True)
                 
                 base_source = self.anchor_manager.get_anchor(source_anchor.x, source_anchor.z)
                 if base_source:
@@ -368,85 +385,6 @@ class Layout3Brick(LayoutBase):
 
         return True
  
-    def dfs_find_path(self, target_x, target_z, target_tick, note, is_half, current_redstone, current_notes, current_anchors, commands_list):
-        """
-        Le Cerveau : Fonction récursive qui empile les calques et simule les chemins.
-        - S'il manque du temps : simule un répéteur (try_place_repeater_sim)
-        - Si on est en avance : simule de la redstone pour avancer (try_expand_redstone_sim)
-        - Si timing parfait : simule la note finale (try_place_note_setup_sim)
-        S'annule proprement (Backtracking) en cas d'échec d'une branche.
-        """
-        all_anchors = current_anchors.get_all_active_anchors()
-        valid_anchors = []
-        for a in all_anchors:#je n'aime pas cette logique, pour moi c'est superrflu, normalement, les chaors qui n'ont plus de direction de dispoiblibles devreient etre supprimé du anchor manager
-            if current_anchors.get_free_directions(a):
-                valid_anchors.append(a)
-
-        if not valid_anchors:
-            return False
-
-        valid_anchors.sort(key=lambda a: a.get_score(target_x, target_z, target_tick))
-
-        for best_anchor in valid_anchors:
-            free_dirs = current_anchors.get_free_directions(best_anchor)
-            # On trie les directions en utilisant la distance classique (ligne droite)
-            free_dirs.sort(
-                key=lambda d: math.hypot(
-                    (current_anchor.x + d[0]) - target_data['x'], 
-                    (current_anchor.z + d[1]) - target_data['z']
-                )
-            )
-
-            for direction in free_dirs:
-                new_redstone = ExclusionMapLayer(parent=current_redstone)
-                new_notes = ExclusionMapLayer(parent=current_notes)
-                new_anchors = AnchorManagerLayer(parent=current_anchors)
-
-                dx, dz = direction
-                test_x = best_anchor.x + dx
-                test_z = best_anchor.z + dz
-                tick_diff = target_tick - best_anchor.tick
-
-                success = False
-
-                if tick_diff < 0:
-                    new_anchors.consume_direction(best_anchor, direction)
-                    continue
-
-                elif tick_diff == 0:
-                    if len(free_dirs) > 1:
-                        if self.try_place_note_setup_sim(test_x, test_z, best_anchor.tick, note, is_half, direction, new_redstone, new_notes):
-                            new_anchors.consume_direction(best_anchor, direction)
-                            commands_list.append(('note', test_x, self.y_level - 1, test_z, note, best_anchor.tick, best_anchor, direction))
-                            return True
-                        else:
-                            if self.try_expand_redstone_sim(test_x, test_z, best_anchor.tick, best_anchor, new_redstone, new_notes, new_anchors):
-                                new_anchors.consume_direction(best_anchor, direction)
-                                commands_list.append(('redstone', test_x, self.y_level, test_z, best_anchor.tick, best_anchor, direction))
-                                if self.dfs_find_path(target_x, target_z, target_tick, note, is_half, new_redstone, new_notes, new_anchors, commands_list):
-                                    return True
-                                commands_list.pop()
-                    else:
-                        if self.try_expand_redstone_sim(test_x, test_z, best_anchor.tick, best_anchor, new_redstone, new_notes, new_anchors):
-                            new_anchors.consume_direction(best_anchor, direction)
-                            commands_list.append(('redstone', test_x, self.y_level, test_z, best_anchor.tick, best_anchor, direction))
-                            if self.dfs_find_path(target_x, target_z, target_tick, note, is_half, new_redstone, new_notes, new_anchors, commands_list):
-                                return True
-                            commands_list.pop()
-
-                elif tick_diff > 0:
-                    delay_to_burn = min(4, tick_diff)
-                    if self.try_place_repeater_sim(test_x, test_z, best_anchor.tick, direction, delay_to_burn, best_anchor, new_redstone, new_notes, new_anchors):
-                        new_anchors.consume_direction(best_anchor, direction)
-                        out_x, out_z = test_x + dx, test_z + dz
-                        new_tick = best_anchor.tick + delay_to_burn
-                        facing = self.get_facing(dx, dz)
-                        commands_list.append(('repeater', test_x, self.y_level, test_z, out_x, out_z, best_anchor.tick, new_tick, facing, delay_to_burn, dx, dz, best_anchor, direction))
-                        if self.dfs_find_path(target_x, target_z, target_tick, note, is_half, new_redstone, new_notes, new_anchors, commands_list):
-                            return True
-                        commands_list.pop()
-
-        return False
 
     def try_expand_redstone_sim(self, x, z, tick, dx, dz, is_half, redstone_layer, notes_layer, anchor_layer):
         """
@@ -505,53 +443,53 @@ class Layout3Brick(LayoutBase):
 
     def try_place_piston_setup_sim(self, x, z, current_tick, dx, dz, redstone_layer, notes_layer, anchor_layer):
         """
-        Setup d'un piston pour décaler le signal d'un demi-tick.
-        Nécessite 4 espaces libres consécutifs dans la direction (dx, dz).
+        Setup d'un piston sur 5 blocs :
+        Câble -> Piston -> Bloc Redstone -> Vide (pour l'extension) -> Câble Sortie
         """
-        # Calcul des coordonnées des 4 blocs
-        x1, z1 = x, z                 # +1 : Piston
-        x2, z2 = x + dx, z + dz       # +2 : Bloc de redstone
-        x3, z3 = x + 2 * dx, z + 2 * dz # +3 : Câble redstone (qui devient demi-tick)
-        x4, z4 = x + 3 * dx, z + 3 * dz # +4 : Espace libre garanti pour la suite
+        x1, z1 = x, z                 # +0 : Câble d'alimentation
+        x2, z2 = x + dx, z + dz       # +1 : Piston
+        x3, z3 = x + 2*dx, z + 2*dz   # +2 : Bloc de redstone
+        x4, z4 = x + 3*dx, z + 3*dz   # +3 : Espace vide (extension du piston)
+        x5, z5 = x + 4*dx, z + 4*dz   # +4 : Câble de redstone (demi-tick)
 
-        # 1. Vérification de l'occupation physique
-        for bx, bz in [(x1, z1), (x2, z2), (x3, z3), (x4, z4)]:
+        # 1. Vérification de l'occupation physique pour les 5 blocs
+        for bx, bz in [(x1, z1), (x2, z2), (x3, z3), (x4, z4), (x5, z5)]:
             if redstone_layer.is_occupied(bx, bz) or notes_layer.is_occupied(bx, bz):
                 return False
 
         # 2. Vérification des exclusions (court-circuits)
-        # +1 (Piston) : tick actuel, is_half=False
-        if redstone_layer.is_blocked(x1, z1, current_tick, False):
+        if redstone_layer.is_blocked(x1, z1, current_tick, False) or notes_layer.is_blocked(x1, z1, current_tick, False):
             return False
-            
-        # +2 (Redstone Block) : tick=0, is_half=False
-        if redstone_layer.is_blocked(x2, z2, 0, False) or notes_layer.is_blocked(x2, z2, 0, False):
+        if redstone_layer.is_blocked(x2, z2, current_tick, False) or notes_layer.is_blocked(x2, z2, current_tick, False):
             return False
-            
-        # +3 et +4 : tick actuel, mais avec le nouveau statut is_half=True
-        if redstone_layer.is_blocked(x3, z3, current_tick, True) or notes_layer.is_blocked(x3, z3, current_tick, True):
+        if redstone_layer.is_blocked(x3, z3, 0, False) or notes_layer.is_blocked(x3, z3, 0, False):
             return False
-        if redstone_layer.is_blocked(x4, z4, current_tick, True) or notes_layer.is_blocked(x4, z4, current_tick, True):
+        if redstone_layer.is_blocked(x4, z4, 0, False) or notes_layer.is_blocked(x4, z4, 0, False):
+            return False
+        if redstone_layer.is_blocked(x5, z5, current_tick, True) or notes_layer.is_blocked(x5, z5, current_tick, True):
             return False
 
-        # 3. Exécution (Pose des blocs avec les bonnes règles d'exclusion)
+        # 3. Exécution (Occupation des blocs)
+        # x1 : Câble d'entrée
+        redstone_layer.occupy(x1, z1, 'redstone_wire', tick=current_tick, dx=dx, dz=dz, is_half=False)
+        notes_layer.occupy(x1, z1, 'redstone_wire', tick=current_tick, dx=dx, dz=dz, is_half=False)
         
-        # +1 : Piston (On l'occupe en tant que 'repeater' pour qu'il ne bloque que devant et derrière)
-        redstone_layer.occupy(x1, z1, 'repeater', tick=current_tick, dx=dx, dz=dz, is_half=False)
-        notes_layer.occupy(x1, z1, 'repeater', tick=current_tick, dx=dx, dz=dz, is_half=False)
+        # x2 : Piston
+        redstone_layer.occupy(x2, z2, 'repeater', tick=current_tick, dx=dx, dz=dz, is_half=False)
+        notes_layer.occupy(x2, z2, 'repeater', tick=current_tick, dx=dx, dz=dz, is_half=False)
 
-        # +2 : Bloc de redstone (On l'occupe en tant que 'redstone_wire' continu au tick 0)
-        redstone_layer.occupy(x2, z2, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
-        notes_layer.occupy(x2, z2, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+        # x3 & x4 : Bloc de redstone + son espace d'extension
+        redstone_layer.occupy(x3, z3, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+        notes_layer.occupy(x3, z3, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+        redstone_layer.occupy(x4, z4, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
+        notes_layer.occupy(x4, z4, 'redstone_wire', tick=0, dx=dx, dz=dz, is_half=False)
 
-        # +3 : Câble de redstone (Passe en demi-tick !)
-        redstone_layer.occupy(x3, z3, 'redstone_wire', tick=current_tick, dx=dx, dz=dz, is_half=True)
-        notes_layer.occupy(x3, z3, 'redstone_wire', tick=current_tick, dx=dx, dz=dz, is_half=True)
+        # x5 : Sortie demi-tick
+        redstone_layer.occupy(x5, z5, 'redstone_wire', tick=current_tick, dx=dx, dz=dz, is_half=True)
+        notes_layer.occupy(x5, z5, 'redstone_wire', tick=current_tick, dx=dx, dz=dz, is_half=True)
 
-        # 4. Création de la nouvelle ancre en +3
-        # L'ancre se comporte comme la sortie d'un répéteur (1 seule direction) et propage le is_half
-        anchor_layer.add_anchor(x3, z3, current_tick, dx=dx, dz=dz, block_type="repeater", is_half=True)
-
+        # 4. Création de l'ancre en x5
+        anchor_layer.add_anchor(x5, z5, current_tick, dx=dx, dz=dz, block_type="repeater", is_half=True)
         return True
 
     def get_facing(self, dx, dz):
@@ -579,7 +517,7 @@ class Layout3Brick(LayoutBase):
             return False
 
         # On trie les ancres globales UNE SEULE FOIS pour commencer par la meilleure
-        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick']))
+        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick'], target_data['is_half']))
 
         # On lance le DFS en partant de l'ancre la plus prometteuse
         for start_anchor in valid_anchors:
@@ -588,70 +526,18 @@ class Layout3Brick(LayoutBase):
 
         return False
 
-        def _dfs_step(self, current_anchor, target_data, current_redstone, current_notes, current_anchors, commands_list):
-            """
-            Le Travailleur (Cerveau) : Fonction récursive qui n'explore qu'à partir de l'ancre courante fournie.
-            """
-            free_dirs = current_anchors.get_free_directions(current_anchor)
-            
-            # On trie uniquement les directions de l'ancre courante vers la cible
-            free_dirs.sort(
-                key=lambda d: abs((current_anchor.x + d[0]) - target_data['x']) + abs((current_anchor.z + d[1]) - target_data['z'])
-            )
-
-            for direction in free_dirs:
-                new_redstone = ExclusionMapLayer(parent=current_redstone)
-                new_notes = ExclusionMapLayer(parent=current_notes)
-                new_anchors = AnchorManagerLayer(parent=current_anchors)
-
-                dx, dz = direction
-                test_x = current_anchor.x + dx
-                test_z = current_anchor.z + dz
-                tick_diff = target_data['tick'] - current_anchor.tick
-
-                if tick_diff < 0:
-                    new_anchors.consume_direction(current_anchor, direction)
-                    continue
-
-                elif tick_diff == 0:
-                    if len(free_dirs) > 1:
-                        if self.try_place_note_setup_sim(test_x, test_z, current_anchor.tick, target_data['note'], target_data['is_half'], direction, new_redstone, new_notes):
-                            new_anchors.consume_direction(current_anchor, direction)
-                            commands_list.append(('note', test_x, test_z, target_data['note'], current_anchor.tick, current_anchor, direction))
-                            return True
-                    else:
-                        if self.try_expand_redstone_sim(test_x, test_z, current_anchor.tick, current_anchor, new_redstone, new_notes, new_anchors):
-                            new_anchors.consume_direction(current_anchor, direction)
-                            commands_list.append(('redstone', test_x, test_z, current_anchor.tick, current_anchor, direction))
-                            
-                            new_anchor = new_anchors.get_anchor(test_x, test_z)
-                            
-                            if new_anchor and self._dfs_step(new_anchor, target_data, new_redstone, new_notes, new_anchors, commands_list):
-                                return True
-                            commands_list.pop()
-
-                elif tick_diff > 0:
-                    delay_to_burn = min(4, tick_diff)
-                    if self.try_place_repeater_sim(test_x, test_z, current_anchor.tick, direction, delay_to_burn, current_anchor, new_redstone, new_notes, new_anchors):
-                        new_anchors.consume_direction(current_anchor, direction)
-                        out_x, out_z = test_x + dx, test_z + dz
-                        new_tick = current_anchor.tick + delay_to_burn
-                        facing = self.get_facing(dx, dz)
-                        commands_list.append(('repeater', test_x, test_z, out_x, out_z, current_anchor.tick, new_tick, facing, delay_to_burn, dx, dz, current_anchor, direction))
-                        
-                        # Le répéteur sort sur out_x, out_z. C'est là que se trouve la nouvelle ancre.
-                        new_anchor = new_anchors.get_anchor(out_x, out_z)
-                        
-                        if new_anchor and self._dfs_step(new_anchor, target_data, new_redstone, new_notes, new_anchors, commands_list):
-                            return True
-                        commands_list.pop()
-
-            return False
+        
 
     def _dfs_step(self, current_anchor, target_data, current_redstone, current_notes, current_anchors, commands_list):
         """
         Le Travailleur (Cerveau) : Fonction récursive propre séparant la décision de l'exécution.
         """
+        
+        profondeur = len(commands_list)
+        # Le \r permet de réécrire sur la même ligne dans la console
+        print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur}   ", end="\r")
+        
+        
         # On calcule le temps restant dès le début, car cela va influencer notre stratégie de tri
         tick_diff = target_data['tick'] - current_anchor.tick
 
@@ -680,6 +566,18 @@ class Layout3Brick(LayoutBase):
             # ÉTAPE 1 : DÉCISION (Quelles actions tenter ?)
             # ==========================================
             actions_to_try = []
+
+
+            redstone_chain_length = 0
+            for i in range(len(commands_list)-1, -1, -1):
+                if commands_list[i][0] == 'redstone':
+                    redstone_chain_length += 1
+                else:
+                    # Si on croise un répéteur, un piston ou le début du circuit, 
+                    # le signal est régénéré (ou la chaîne est finie).
+                    break
+
+
 
             if random.random() < 0.2: 
                 actions_to_try.append('redstone')
@@ -725,6 +623,14 @@ class Layout3Brick(LayoutBase):
                     actions_to_try.append('redstone')
 
 
+            # --- NOUVEAU : Application de la limite de signal ---
+            if redstone_chain_length >= 8:
+                # Le signal est épuisé ! On s'interdit formellement de prolonger le câble.
+                if 'redstone' in actions_to_try:
+                    actions_to_try.remove('redstone')
+
+
+
             # ==========================================
             # ÉTAPE 2 : EXÉCUTION (Tentatives et Backtracking)
             # ==========================================
@@ -746,7 +652,7 @@ class Layout3Brick(LayoutBase):
                         commands_list.append(('piston', test_x, test_z, current_anchor.tick, dx, dz, current_anchor, direction))
                         
                         # On récupère l'ancre posée en +3
-                        out_x, out_z = test_x + 2*dx, test_z + 2*dz
+                        out_x, out_z = test_x + 4*dx, test_z + 4*dz
                         new_anchor = new_anchors.get_anchor(out_x, out_z)
                         
                         # On relance le DFS depuis +3 pour qu'il pose naturellement la note au coup d'après !
@@ -800,29 +706,41 @@ class Layout3Track(Brick):
 
     def build_sequence(self, df_notes):
         brick = Layout3Brick()
+        
+        # --- 1. PRÉPARATION DU DEBUG ---
+        brick.debug_total_ticks = len(df_notes.index)
+        brick.debug_total_notes = 0
+        
+        # On compte le total de notes à placer
+        for tick in df_notes.index:
+            n_entier = df_notes.loc[tick]['note entier']
+            n_demi = df_notes.loc[tick]['note demi']
+            if n_entier is not None and not isinstance(n_entier, float):
+                brick.debug_total_notes += len(n_entier)
+            if n_demi is not None and not isinstance(n_demi, float):
+                brick.debug_total_notes += len(n_demi)
+        # -------------------------------
 
-        # Target coordinates: (0, 0)
         target_x, target_z = 0, 0
+        brick.debug_current_tick = 0
 
         for tick in df_notes.index:
+            brick.debug_current_tick += 1 # On incrémente le tick en cours
             
-            vitesse = 4 # bloc par seconde
+            vitesse = 4 
             target_x = int(tick/10*vitesse)
             
             notes_entier = df_notes.loc[tick]['note entier']
             notes_demi = df_notes.loc[tick]['note demi']
 
-            if notes_entier is not None:
-                # Handle cases where pandas might have inserted a NaN instead of None
-                if not isinstance(notes_entier, float):
-                    for note in notes_entier:
-                        brick.add_note_organic(note, target_x, target_z, int(tick), is_half=False)
+            if notes_entier is not None and not isinstance(notes_entier, float):
+                for note in notes_entier:
+                    brick.debug_current_note += 1 # On incrémente la note
+                    brick.add_note_organic(note, target_x, target_z, int(tick), is_half=False)
 
-            if notes_demi is not None:
-                if not isinstance(notes_demi, float):
-                    for note in notes_demi:
-                        brick.add_note_organic(note, target_x, target_z, int(tick), is_half=True)
-
-            # target_x, target_z updates could go here
+            if notes_demi is not None and not isinstance(notes_demi, float):
+                for note in notes_demi:
+                    brick.debug_current_note += 1 # On incrémente la note
+                    brick.add_note_organic(note, target_x, target_z, int(tick), is_half=True)
 
         self.add_data(brick)
