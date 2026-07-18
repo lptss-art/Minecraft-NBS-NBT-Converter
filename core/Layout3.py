@@ -234,6 +234,22 @@ class ExclusionMapLayer:
             return self.parent.is_blocked(target_x, target_z, current_tick, current_is_half)
         return False
 
+    def is_blocked_strict(self, target_x, target_z, current_tick, current_is_half):
+        """Vérifie si la position est bloquée, et s'assure qu'au maximum un seul conflit valide existe."""
+        count_valid = 0
+        current = self
+        while current:
+            if (target_x, target_z) in current.blocked_positions:
+                for conflict in current.blocked_positions[(target_x, target_z)]:
+                    if conflict['tick'] != current_tick or conflict['is_half'] != current_is_half:
+                        return True
+                    else:
+                        count_valid += 1
+                        if count_valid >= 2:
+                            return True
+            current = current.parent
+        return False
+
 class Layout3Brick(LayoutBase):
     """
     Chef d'orchestre de la génération organique.
@@ -466,7 +482,7 @@ class Layout3Brick(LayoutBase):
                 return False
 
         # 2. Vérification des exclusions (court-circuits)
-        if redstone_layer.is_blocked(x1, z1, current_tick, False) or notes_layer.is_blocked(x1, z1, current_tick, False):
+        if redstone_layer.is_blocked_strict(x1, z1, current_tick, False) or notes_layer.is_blocked(x1, z1, current_tick, False):
             return False
         if redstone_layer.is_blocked(x2, z2, current_tick, False) or notes_layer.is_blocked(x2, z2, current_tick, False):
             return False
