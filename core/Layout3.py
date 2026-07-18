@@ -162,14 +162,31 @@ class AnchorManagerLayer:
     def get_anchor(self, x, z):
         """
         Cherche et retourne une ancre active située aux coordonnées exactes (x, z).
-        Renvoie None si aucune ancre n'existe à cet emplacement ou si elle a été supprimée.
+        OPTIMISATION MAJEURE : Plus de construction de liste géante.
         """
-        # On passe par get_all_active_anchors pour respecter la logique 
-        # d'héritage des calques et des ancres supprimées.
-        for anchor in self.get_all_active_anchors():
-            if anchor.x == x and anchor.z == z:
-                return anchor
-                
+        # 1. OPTIMISATION DFS : 99% du temps, on cherche l'ancre qu'on vient juste d'ajouter au calque
+        if self.active_anchors:
+            # On regarde la dernière ajoutée (O(1) - instantané)
+            last = self.active_anchors[-1]
+            if last.x == x and last.z == z:
+                return last
+
+            # Au cas où, on regarde les autres du calque actuel
+            for anchor in self.active_anchors:
+                if anchor.x == x and anchor.z == z:
+                    return anchor
+
+        # 2. OPTIMISATION COMMIT : Si on ne l'a pas trouvée, on remonte l'historique
+        # mais SANS utiliser get_all_active_anchors() pour éviter de surcharger la RAM.
+        removed = set()
+        current = self
+        while current:
+            removed.update(current.removed_anchors)
+            for anchor in current.active_anchors:
+                if anchor.x == x and anchor.z == z and anchor not in removed:
+                    return anchor
+            current = current.parent
+
         return None
 
 
