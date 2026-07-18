@@ -266,6 +266,12 @@ class Layout3Brick(LayoutBase):
         self.debug_total_notes = 0
         self.debug_current_note = 0
 
+    def _print(self, msg, end="\n"):
+        if hasattr(self, 'progress_callback') and self.progress_callback is not None:
+            self.progress_callback(msg, end=end)
+        else:
+            print(msg, end=end)
+
     def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
         """
         Tente de poser une note au bon tick.
@@ -282,6 +288,8 @@ class Layout3Brick(LayoutBase):
             'is_half': is_half
         }
         
+        self.current_exploration_budget = 300
+        
         success = self.start_pathfinding(
             target_data,
             self.impossible_redstone, self.impossible_notes, self.anchor_manager,
@@ -289,11 +297,11 @@ class Layout3Brick(LayoutBase):
         )
 
         if not success:
-            print(f"\nÉchec critique : Impossible de placer la note '{note}' au tick {target_tick}")
+            self._print(f"\nÉchec critique : Impossible de placer la note '{note}' au tick {target_tick}")
             return False
         else:
             # Succès ! On passe à la ligne suivante dans la console
-            print(f"\nSuccès pour la note {note} (Tick {target_tick})")
+            self._print(f"\nSuccès pour la note {note} (Tick {target_tick})")
             
         # ==========================================
         # COMMIT DES COMMANDES DANS LE MONDE RÉEL
@@ -533,9 +541,14 @@ class Layout3Brick(LayoutBase):
         Le Travailleur (Cerveau) : Fonction récursive propre séparant la décision de l'exécution.
         """
         
+        self.current_exploration_budget -= 1
+        if self.current_exploration_budget <= 0:
+            return False # Budget épuisé : cet endroit est trop compliqué, on abandonne cette ancre !
+        
+        
         profondeur = len(commands_list)
         # Le \r permet de réécrire sur la même ligne dans la console
-        print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur}   ", end="\r")
+        self._print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur}   ", end="\r")
         
         
         # On calcule le temps restant dès le début, car cela va influencer notre stratégie de tri
@@ -579,7 +592,7 @@ class Layout3Brick(LayoutBase):
 
 
 
-            if random.random() < 0.2: 
+            if random.random() < 0.1: 
                 actions_to_try.append('redstone')
 
 
@@ -624,7 +637,7 @@ class Layout3Brick(LayoutBase):
 
 
             # --- NOUVEAU : Application de la limite de signal ---
-            if redstone_chain_length >= 8:
+            if redstone_chain_length >= 4:
                 # Le signal est épuisé ! On s'interdit formellement de prolonger le câble.
                 if 'redstone' in actions_to_try:
                     actions_to_try.remove('redstone')
@@ -704,8 +717,9 @@ class Layout3Track(Brick):
     def __init__(self):
         super().__init__()
 
-    def build_sequence(self, df_notes):
+    def build_sequence(self, df_notes, progress_callback=None):
         brick = Layout3Brick()
+        brick.progress_callback = progress_callback
         
         # --- 1. PRÉPARATION DU DEBUG ---
         brick.debug_total_ticks = len(df_notes.index)

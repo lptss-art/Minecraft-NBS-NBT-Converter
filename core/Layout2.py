@@ -141,7 +141,7 @@ class Layout2Track(Brick):
         super().__init__()
         self.branch_shape = branch_shape
 
-    def build_sequence(self, df_notes):
+    def build_sequence(self, df_notes, **kwargs):
         """Processes notes and maps them to a serpentine sequence of bricks."""
         last_tick = -1
         direction = 0
