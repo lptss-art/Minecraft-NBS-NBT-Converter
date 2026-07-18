@@ -16,7 +16,7 @@ class StructureGenerator:
         self.global_data = Brick()
         self.palettes = palettes or {}
 
-    def generate_blocks(self):
+    def generate_blocks(self, progress_callback=None):
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
         if "Layout1" in self.layout_type:
             track = Layout1CompleteTrack()
@@ -25,7 +25,7 @@ class StructureGenerator:
         else:
             track = Layout2Track()
 
-        track.build_sequence(self.df_notes)
+        track.build_sequence(self.df_notes, progress_callback=progress_callback)
         self.global_data = track
 
         # Before decoration, we must resolve all 'needs_down' constraints

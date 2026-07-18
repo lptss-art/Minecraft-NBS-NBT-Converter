@@ -172,7 +172,30 @@ def render_generate_tab():
 
                     status_text.text("Generating Structure Blocks...")
                     generator = StructureGenerator(df_prep, layout_type=layout_type, palettes=palettes)
-                    generator.generate_blocks()
+
+                    progress_callback = None
+                    if "Layout3" in layout_type:
+                        st.write("Layout 3 Generation Progress:")
+                        log_container = st.empty()
+                        if 'log_lines' not in st.session_state:
+                            st.session_state.log_lines = []
+                        else:
+                            st.session_state.log_lines.clear()
+
+                        def pc(msg, end="\n"):
+                            # Handle terminal carriage return simulation
+                            if end == "\r" and len(st.session_state.log_lines) > 0:
+                                st.session_state.log_lines[-1] = msg
+                            else:
+                                st.session_state.log_lines.append(msg)
+                            # Keep only the last 15 lines to avoid UI lag
+                            if len(st.session_state.log_lines) > 15:
+                                st.session_state.log_lines = st.session_state.log_lines[-15:]
+                            log_container.code("\n".join(st.session_state.log_lines), language="bash")
+
+                        progress_callback = pc
+
+                    generator.generate_blocks(progress_callback=progress_callback)
                     progress_bar.progress(80)
 
                     status_text.text("Exporting NBT...")
