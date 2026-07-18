@@ -276,8 +276,9 @@ class Layout3Brick(LayoutBase):
     Manages the organic layout (Layout 3).
     Dynamic opportunistic generator using a score system and 2D backtracking.
     """
-    def __init__(self):
+    def __init__(self, force_positive_coords=False):
         super().__init__()
+        self.force_positive_coords = force_positive_coords
         # On définit une hauteur de base pour tout le circuit
         self.y_level = 0 
         
@@ -288,10 +289,11 @@ class Layout3Brick(LayoutBase):
         
         
         # On place le point de départ : (x, z, tick)
-       
-        self.anchor_manager.add_anchor(-1, -1, 0) 
-        self.impossible_redstone.occupy(-1, -1, 'start_block',-1)
-        self.impossible_notes.occupy(-1, -1, 'start_block',-1)
+
+        start_x, start_z = (-1, -1) if not self.force_positive_coords else (0, 0)
+        self.anchor_manager.add_anchor(start_x, start_z, 0)
+        self.impossible_redstone.occupy(start_x, start_z, 'start_block',-1)
+        self.impossible_notes.occupy(start_x, start_z, 'start_block',-1)
         
         # --- DEBUG TRACKING ---
         self.debug_total_ticks = 0
@@ -495,6 +497,8 @@ class Layout3Brick(LayoutBase):
 
         # 1. Vérification de l'occupation physique pour les 5 blocs
         for bx, bz in [(x1, z1), (x2, z2), (x3, z3), (x4, z4), (x5, z5)]:
+            if self.force_positive_coords and (bx < 0 or bz < 0):
+                return False
             if redstone_layer.is_occupied(bx, bz) or notes_layer.is_occupied(bx, bz):
                 return False
 
@@ -608,6 +612,9 @@ class Layout3Brick(LayoutBase):
             test_x = current_anchor.x + dx
             test_z = current_anchor.z + dz
             
+            if self.force_positive_coords and (test_x < 0 or test_z < 0):
+                continue
+
             # ==========================================
             # ÉTAPE 1 : DÉCISION (Quelles actions tenter ?)
             # ==========================================
@@ -750,8 +757,8 @@ class Layout3Track(Brick):
     def __init__(self):
         super().__init__()
 
-    def build_sequence(self, df_notes, progress_callback=None):
-        brick = Layout3Brick()
+    def build_sequence(self, df_notes, progress_callback=None, force_positive_coords=False):
+        brick = Layout3Brick(force_positive_coords=force_positive_coords)
         brick.progress_callback = progress_callback
         
         # --- 1. PRÉPARATION DU DEBUG ---

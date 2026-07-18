@@ -122,6 +122,7 @@ def render_generate_tab():
 
         layout_type = st.selectbox("Select Structure Layout:", ["Layout2 (Compact Serpentine)", "Layout1 (Complete 6-track Minecart)", "Layout3 (Organic)"])
         export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"])
+        force_positive = st.checkbox("Force Positive Coordinates (Layout 3)", value=False)
 
         st.subheader("Export Configuration")
         export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
@@ -171,7 +172,7 @@ def render_generate_tab():
                     progress_bar.progress(50)
 
                     status_text.text("Generating Structure Blocks...")
-                    generator = StructureGenerator(df_prep, layout_type=layout_type, palettes=palettes)
+                    generator = StructureGenerator(df_prep, layout_type=layout_type, palettes=palettes, force_positive_coords=force_positive)
 
                     progress_callback = None
                     if "Layout3" in layout_type:
