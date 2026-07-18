@@ -342,7 +342,7 @@ class Layout3Brick(LayoutBase):
                 x1, z1 = x, z                     # Piston
                 x2, z2 = x + dx, z + dz           # Bloc de redstone
                 x3, z3 = x + 2*dx, z + 2*dz       # Câble redstone (+ ancre)
-                facing = self.get_facing(dx, dz)
+                facing = self.get_facing(-dx, -dz)
                 
                 # +1 Piston (comportement de répéteur pour l'exclusion)
                 self.impossible_redstone.occupy(x1, z1, 'repeater', tick=tick, dx=dx, dz=dz, is_half=False)
