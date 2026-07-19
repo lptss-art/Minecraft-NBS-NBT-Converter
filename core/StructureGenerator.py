@@ -10,12 +10,13 @@ class StructureGenerator:
     Generates NBT files from processed MusicData.
     Supports different layouts and output modes (Monolithic vs. Mini-NBT parts).
     """
-    def __init__(self, processed_data, layout_type="Layout2", palettes=None, force_positive_coords=False):
+    def __init__(self, processed_data, layout_type="Layout2", palettes=None, force_positive_coords=False, layout_params=None):
         self.df_notes = processed_data
         self.layout_type = layout_type
         self.global_data = Brick()
         self.palettes = palettes or {}
         self.force_positive_coords = force_positive_coords
+        self.layout_params = layout_params or {}
 
     def generate_blocks(self, progress_callback=None):
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
@@ -27,17 +28,27 @@ class StructureGenerator:
             track = Layout2Track()
 
         if "Layout3" in self.layout_type:
-            track.build_sequence(self.df_notes, progress_callback=progress_callback, force_positive_coords=self.force_positive_coords)
+            track.build_sequence(self.df_notes, progress_callback=progress_callback, force_positive_coords=self.force_positive_coords, **self.layout_params)
         else:
-            track.build_sequence(self.df_notes, progress_callback=progress_callback)
+            track.build_sequence(self.df_notes, progress_callback=progress_callback, **self.layout_params)
         self.global_data = track
 
         # Before decoration, we must resolve all 'needs_down' constraints
         # using a default floor block, e.g. stone or wood if specified
-        if self.palettes and self.palettes.get('floor'):
-            floor_block_name = f"minecraft:{self.palettes['floor'][0]}"
-        else:
-            floor_block_name = "minecraft:stone"
+        # Determine floor block from layout parameters if provided, else use palette floor
+        floor_block_name = None
+        if "Layout1" in self.layout_type:
+            floor_block_name = self.layout_params.get("l1_glass")
+        elif "Layout2" in self.layout_type:
+            floor_block_name = self.layout_params.get("l2_base")
+        elif "Layout3" in self.layout_type:
+            floor_block_name = self.layout_params.get("l3_base")
+
+        if not floor_block_name:
+            if self.palettes and self.palettes.get('floor'):
+                floor_block_name = f"minecraft:{self.palettes['floor'][0]}"
+            else:
+                floor_block_name = "minecraft:stone"
 
         self.global_data.clean(floor_block_name)
 

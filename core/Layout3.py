@@ -332,6 +332,7 @@ class Layout3Brick(LayoutBase):
         else:
             print(msg, end=end)
 
+
     def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
         """
         Tente de poser une note au bon tick.
@@ -348,7 +349,7 @@ class Layout3Brick(LayoutBase):
             'is_half': is_half
         }
         
-        self.current_exploration_budget = 1000
+        self.current_exploration_budget = getattr(self, "l3_attempts", 1000)
         
         success = self.start_pathfinding(
             target_data,
@@ -715,7 +716,7 @@ class Layout3Brick(LayoutBase):
 
 
 
-            if random.random() < 0.3: 
+            if random.random() < getattr(self, "l3_prob", 0.3):
                 actions_to_try.append('redstone')
 
 
@@ -840,8 +841,12 @@ class Layout3Track(Brick):
     def __init__(self):
         super().__init__()
 
-    def build_sequence(self, df_notes, progress_callback=None, force_positive_coords=False):
+    def build_sequence(self, df_notes, progress_callback=None, force_positive_coords=False, l3_base="minecraft:oak_planks", l3_attempts=1000, l3_speed=4, l3_prob=0.3, **kwargs):
         brick = Layout3Brick(force_positive_coords=force_positive_coords)
+        brick.l3_base = l3_base
+        brick.l3_attempts = l3_attempts
+        brick.l3_speed = l3_speed
+        brick.l3_prob = l3_prob
         brick.progress_callback = progress_callback
         
         # --- 1. PRÉPARATION DU DEBUG ---
@@ -864,7 +869,7 @@ class Layout3Track(Brick):
         for tick in df_notes.index:
             brick.debug_current_tick += 1 # On incrémente le tick en cours
             
-            vitesse = 4 
+            vitesse = getattr(brick, "l3_speed", 4)
             target_x = int(tick/10*vitesse)
             
             notes_entier = df_notes.loc[tick]['note entier']
