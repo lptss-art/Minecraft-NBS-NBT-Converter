@@ -678,7 +678,7 @@ class Layout3Brick(LayoutBase):
 
 
 
-            if random.random() < 0.1: 
+            if random.random() < 0.3: 
                 actions_to_try.append('redstone')
 
 
@@ -723,7 +723,7 @@ class Layout3Brick(LayoutBase):
 
 
             # --- NOUVEAU : Application de la limite de signal ---
-            if redstone_chain_length >= 4:
+            if redstone_chain_length >= 8:
                 # Le signal est épuisé ! On s'interdit formellement de prolonger le câble.
                 if 'redstone' in actions_to_try:
                     actions_to_try.remove('redstone')
