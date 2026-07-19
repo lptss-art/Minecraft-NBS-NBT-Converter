@@ -29,11 +29,13 @@ class BaseLaneBrick(LayoutBase):
                 for z in range(z_start, z_end + 1):
                     self.add_block(x, y, z, block_name, properties, tick=self.tick)
 
-    def draw_floor(self, longueur_x, y, width_range=(-2, 2), block_name="minecraft:polished_blackstone_bricks"):
+    def draw_floor(self, longueur_x, y, width_range=(-2, 2), block_name=None):
+        block_name = block_name or getattr(self, "base_material", "minecraft:polished_blackstone_bricks")
         """Dessine un sol horizontal de 'longueur_x' blocs le long de l'axe X."""
         self.fill_region((0, longueur_x - 1), (y, y), width_range, block_name)
 
-    def draw_wall(self, longueur_x, y_range, z, block_name="minecraft:polished_blackstone_bricks"):
+    def draw_wall(self, longueur_x, y_range, z, block_name=None):
+        block_name = block_name or getattr(self, "base_material", "minecraft:polished_blackstone_bricks")
         """Dessine un mur vertical le long de l'axe X à la position Z."""
         self.fill_region((0, longueur_x - 1), y_range, (z, z), block_name)
 
@@ -56,8 +58,8 @@ class BaseLaneBrick(LayoutBase):
 
         # Murs latéraux de tout en bas (Y=-13) jusqu'au plafond standard (Y=-2)
         # Largeur : Z = -2 et Z = 2
-        self.draw_wall(longueur_x, (-13, -2), z=-2, block_name="minecraft:polished_blackstone_bricks")
-        self.draw_wall(longueur_x, (-13, -2), z=2,  block_name="minecraft:polished_blackstone_bricks")
+        self.draw_wall(longueur_x, (-13, -2), z=-2, block_name=getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
+        self.draw_wall(longueur_x, (-13, -2), z=2,  block_name=getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
 
         # Sols des étages (sur toute la largeur de Z=-2 à Z=2)
         for y_sol in [-12, -8, -4, -2]:
@@ -84,7 +86,7 @@ class BaseLaneBrick(LayoutBase):
         self.add_block(x_lamp, -2, -2, "minecraft:redstone_lamp")
         self.add_block(x_lamp, -2, 2,  "minecraft:redstone_lamp")
         
-        self.draw_floor(longueur_x, y=-1, width_range=(0, 0), block_name="minecraft:polished_blackstone_bricks") # Support
+        self.draw_floor(longueur_x, y=-1, width_range=(0, 0), block_name=getattr(self, "base_material", "minecraft:polished_blackstone_bricks")) # Support
         self.fill_region((0, longueur_x - 1), (0, 0), (0, 0), "minecraft:rail", {"shape": "east_west"})
 
         # --- CAS SPÉCIFIQUE : START ---
@@ -92,36 +94,36 @@ class BaseLaneBrick(LayoutBase):
             # Le point culminant (le rail) est posé exactement à Y = 0
 
             
-            self.add_block(0, 0, 0, "minecraft:polished_blackstone_bricks") # Bloc d'arrêt sur le rail
+            self.add_block(0, 0, 0, getattr(self, "base_material", "minecraft:polished_blackstone_bricks")) # Bloc d'arrêt sur le rail
 
             # Descente du signal (les coordonnées Y ont toutes été décalées de -13)
             self.add_block(6, 0, 0, "minecraft:detector_rail", {"shape": "east_west"})
             self.add_block(6, -1, 1, "minecraft:redstone_wire")
-            self.add_block(6, -2, 1, "minecraft:polished_blackstone_bricks")
+            self.add_block(6, -2, 1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             
             self.add_block(7, -2, 1, "minecraft:redstone_wire")
-            self.add_block(7, -3, 1, "minecraft:polished_blackstone_bricks")
+            self.add_block(7, -3, 1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             self.add_block(7, -2, 0, "minecraft:air")
             
             self.add_block(7, -4, -1, "minecraft:redstone_wire")
-            self.add_block(7, -5, -1, "minecraft:polished_blackstone_bricks")
+            self.add_block(7, -5, -1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             
             self.add_block(8, -5, -1, "minecraft:redstone_wire")
-            self.add_block(8, -6, -1, "minecraft:polished_blackstone_bricks")
+            self.add_block(8, -6, -1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             self.add_block(8, -4, -1, "minecraft:air")
             
             self.add_block(9, -6, -1, "minecraft:redstone_wire")
-            self.add_block(9, -7, -1, "minecraft:polished_blackstone_bricks")
+            self.add_block(9, -7, -1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             
             self.add_block(9, -8, 1, "minecraft:redstone_wire")
-            self.add_block(9, -9, 1, "minecraft:polished_blackstone_bricks")
+            self.add_block(9, -9, 1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             
             self.add_block(10, -9, 1, "minecraft:redstone_wire")
-            self.add_block(10, -10, 1, "minecraft:polished_blackstone_bricks")
+            self.add_block(10, -10, 1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
             self.add_block(10, -8, 1, "minecraft:air")
             
             self.add_block(11, -10, 1, "minecraft:redstone_wire")
-            self.add_block(11, -11, 1, "minecraft:polished_blackstone_bricks")
+            self.add_block(11, -11, 1, getattr(self, "base_material", "minecraft:polished_blackstone_bricks"))
 
         self.tick += 1
 
@@ -130,8 +132,7 @@ class MinecartBrick(LayoutBase):
     Manages the central minecart rail for Layout 1.
     Builds a 2-block long straight rail segment (progressing along X).
     """
-    def __init__(self, start_x=0, start_y=0, start_z=0):
-        super().__init__(x=start_x, y=start_y, z=start_z)
+
 
     def build(self):
         # We need a solid block under the rail
@@ -145,14 +146,26 @@ class MinecartBrick(LayoutBase):
         self.tick += 1
 
 class Layout1Brick(LayoutBase):
+    def __init__(self, start_x=0, start_y=0, start_z=0, note_bottom_block="minecraft:glass", base_material="minecraft:polished_blackstone_bricks", empty_note_block="minecraft:redstone_lamp"):
+        super().__init__(x=start_x, y=start_y, z=start_z)
+        self.note_bottom_block = note_bottom_block
+        self.base_material = base_material
+        self.empty_note_block = empty_note_block
+        # Note: actually we need to override add_note_to_brick to use note_bottom_block instead of instruments if they want to override the instrument block, but wait, "le bloc sous nes noteblock. (du verre opaque par default)". In the original Layout1, there is no glass! The base blocks are `polished_blackstone_bricks` and the note blocks use standard instruments.
+        # But wait, looking at `BaseLaneBrick.build()`, it places `minecraft:glass`?
+
     """
     Manages a straight line layout (Repeater -> Block) for a single tick.
     Inherits from LayoutBase.
     """
-    def __init__(self, start_x=0, start_y=0, start_z=0):
-        super().__init__(x=start_x, y=start_y, z=start_z)
 
-    def build(self, notes_integer=None, notes_half=None, delay=1):
+
+
+    def add_note_to_brick(self, brick, x, y, z, note):
+        super().add_note_to_brick(brick, x, y, z, note)
+        brick.add_block(x, y - 1, z, getattr(self, "note_bottom_block", "minecraft:glass"), {}, tick=self.tick, needs_down=True)
+
+    def build(self, notes_integer=None, notes_half=None, delay=1, empty_note="minecraft:redstone_lamp"):
         """
         Builds a single tick's worth of blocks for the straight layout.
         Notes branch off sideways from the central block.
@@ -180,7 +193,7 @@ class Layout1Brick(LayoutBase):
                 self.add_note_to_brick(self, x, y, z, notes_half[idx])
         
         if nb_integer == 0:
-            self.add_block(1, 0, 0, "minecraft:redstone_lamp", tick=self.tick)
+            self.add_block(1, 0, 0, empty_note, tick=self.tick)
         
         if(nb_half!=0):
             self.add_block(1, 0, -2, "minecraft:redstone_block", tick=self.tick)
@@ -195,7 +208,7 @@ class Layout1Track(Brick):
         super().__init__()
         self.branch_shape = branch_shape
 
-    def build_sequence(self, df_notes, **kwargs):
+    def build_sequence(self, df_notes, note_bottom_block="minecraft:glass", base_material="minecraft:polished_blackstone_bricks", empty_note_block="minecraft:redstone_lamp", **kwargs):
         """Processes notes and maps them to a serpentine sequence of bricks."""
         last_tick = -1
         direction = 0
@@ -205,7 +218,7 @@ class Layout1Track(Brick):
             tick_diff = int(tick - last_tick)
             actual_delay = max(1, min(4, tick_diff))
 
-            brick = Layout1Brick()
+            brick = Layout1Brick(note_bottom_block=note_bottom_block, base_material=base_material, empty_note_block=empty_note_block)
             brick.tick = int(last_tick)
 
             # Get notes for this tick
@@ -218,7 +231,7 @@ class Layout1Track(Brick):
 
 
             # Build natively
-            brick.build(notes_entier, notes_demi, delay=actual_delay)
+            brick.build(notes_entier, notes_demi, delay=actual_delay, empty_note=empty_note_block)
 
             pos[0] += 2
 
@@ -289,7 +302,10 @@ class Layout1CompleteTrack(Brick):
 
         return pistes
 
-    def build_sequence(self, df_notes, **kwargs):
+    def build_sequence(self, df_notes, note_bottom_block="minecraft:glass", base_material="minecraft:polished_blackstone_bricks", empty_note_block="minecraft:redstone_lamp", **kwargs):
+        self.base_glass = kwargs.get("l1_glass", note_bottom_block)
+        self.base_material = kwargs.get("l1_base", base_material)
+        self.empty_note = kwargs.get("l1_empty", empty_note_block)
         """Parcourt la chanson par fenêtres de 15 ticks et assemble le tout."""
         if df_notes.empty:
             return
@@ -299,12 +315,16 @@ class Layout1CompleteTrack(Brick):
         longueur_chunk_x = 6 
         
         lane_intro = BaseLaneBrick()
+        lane_intro.base_glass = self.base_glass
+        lane_intro.base_material = self.base_material
         lane_intro.build(start=True)
         self.add_data(lane_intro)
         pos_x = longueur_chunk_x*2
         
         
         lane = BaseLaneBrick()
+        lane.base_glass = self.base_glass
+        lane.base_material = self.base_material
         lane.position = [pos_x,0,0]
         lane.build(start=False)
         self.add_data(lane)
@@ -321,6 +341,8 @@ class Layout1CompleteTrack(Brick):
             # On pose des briques centrales jusqu'à couvrir la distance de ce chunk
 
             lane = BaseLaneBrick()
+            lane.base_glass = self.base_glass
+            lane.base_material = self.base_material
             lane.position = [pos_x,0,0]
             lane.build(start=False)
             self.add_data(lane)
@@ -338,7 +360,7 @@ class Layout1CompleteTrack(Brick):
             # 2. Instanciation et build des 6 pistes locales pour ce chunk
             tracks_locaux = {clef: Layout1Track() for clef in pistes_chunk.keys()}
             for clef, track_obj in tracks_locaux.items():
-                track_obj.build_sequence(pistes_chunk[clef])
+                track_obj.build_sequence(pistes_chunk[clef], empty_note_block=self.empty_note, note_bottom_block=self.base_glass, base_material=self.base_material)
 
 
             # 4. Placement et imbrication des 6 pistes de notes dans la structure globale

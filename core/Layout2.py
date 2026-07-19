@@ -10,7 +10,19 @@ class Layout2Brick(LayoutBase):
     def __init__(self, x=0, y=0, z=0, facing='south', direction=-1):
         super().__init__(x=x, y=y, z=z, facing=facing, direction=direction)
         
-    def build(self, notes_integer=None, notes_half=None, delay=1, en_L=False):
+
+    def add_note_to_brick(self, brick, x, y, z, note):
+        super().add_note_to_brick(brick, x, y, z, note)
+        # Override the instrument block placed by base class
+        # It placed `instr_name` at y-1
+        # If user specified a base, we force it.
+        # However, LayoutBase automatically uses the instrument mapping. The user requested:
+        # "le bloc sous les noteblock. (du bois par default)"
+        # So we just replace the block below.
+        brick.add_block(x, y - 1, z, getattr(self, "l2_base_cached", "minecraft:oak_planks"), {}, tick=self.tick, needs_down=True)
+
+    def build(self, notes_integer=None, notes_half=None, delay=1, en_L=False, l2_base="minecraft:oak_planks", l2_empty="minecraft:redstone_lamp"):
+        self.l2_base_cached = l2_base
         """
         Adds a segment of the song (one or more ticks) to the layout using the flat unified logic.
         """
@@ -123,7 +135,7 @@ class Layout2Brick(LayoutBase):
             base_config = CONFIG_INTEGER_base_L if en_L else CONFIG_INTEGER_base_I
 
         if nb_integer == 0:
-            self.add_block(0, 0, 0, "minecraft:redstone_lamp", tick=self.tick)
+            self.add_block(0, 0, 0, l2_empty, tick=self.tick)
 
         for idx, (x, y, z), _ in base_config:
             if nb_integer > idx:
@@ -141,7 +153,7 @@ class Layout2Track(Brick):
         super().__init__()
         self.branch_shape = branch_shape
 
-    def build_sequence(self, df_notes, **kwargs):
+    def build_sequence(self, df_notes, l2_base="minecraft:oak_planks", l2_empty="minecraft:redstone_lamp", **kwargs):
         """Processes notes and maps them to a serpentine sequence of bricks."""
         last_tick = -1
         direction = 0
@@ -165,7 +177,7 @@ class Layout2Track(Brick):
             en_L = (direction % 2 == 0)
 
             # Build natively
-            brick.build(notes_entier, notes_demi, delay=actual_delay, en_L=en_L)
+            brick.build(notes_entier, notes_demi, delay=actual_delay, en_L=en_L, l2_base=l2_base, l2_empty=l2_empty)
 
             # Align serpentine according to user instructions
             if direction % 4 == 0:

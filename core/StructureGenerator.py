@@ -10,12 +10,13 @@ class StructureGenerator:
     Generates NBT files from processed MusicData.
     Supports different layouts and output modes (Monolithic vs. Mini-NBT parts).
     """
-    def __init__(self, processed_data, layout_type="Layout2", palettes=None, force_positive_coords=False):
+    def __init__(self, processed_data, layout_type="Layout2", palettes=None, force_positive_coords=False, layout_params=None):
         self.df_notes = processed_data
         self.layout_type = layout_type
         self.global_data = Brick()
         self.palettes = palettes or {}
         self.force_positive_coords = force_positive_coords
+        self.layout_params = layout_params or {}
 
     def generate_blocks(self, progress_callback=None):
         """Processes notes and maps them to a global Brick structure using the selected layout track."""
@@ -27,9 +28,9 @@ class StructureGenerator:
             track = Layout2Track()
 
         if "Layout3" in self.layout_type:
-            track.build_sequence(self.df_notes, progress_callback=progress_callback, force_positive_coords=self.force_positive_coords)
+            track.build_sequence(self.df_notes, progress_callback=progress_callback, force_positive_coords=self.force_positive_coords, **self.layout_params)
         else:
-            track.build_sequence(self.df_notes, progress_callback=progress_callback)
+            track.build_sequence(self.df_notes, progress_callback=progress_callback, **self.layout_params)
         self.global_data = track
 
         # Before decoration, we must resolve all 'needs_down' constraints

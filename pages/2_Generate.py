@@ -85,7 +85,28 @@ export_mode = st.segmented_control(
 # Render force_positive only if Layout 3 is selected
 force_positive = False
 if layout_type == "Layout 3":
-    force_positive = st.checkbox("Force Positive Coordinates (Layout 3)", value=False, disabled=(processor is None))
+    force_positive = st.toggle("Force Positive Coordinates (Z)", value=False, disabled=(processor is None))
+
+
+st.subheader("Layout Personalization")
+layout_params = {}
+if layout_type == "Layout 1":
+    col_l1, col_l2, col_l3 = st.columns(3)
+    layout_params["l1_glass"] = col_l1.text_input("Block under Note Blocks", value="minecraft:glass")
+    layout_params["l1_base"] = col_l2.text_input("Central Base Material", value="minecraft:polished_blackstone_bricks")
+    layout_params["l1_empty"] = col_l3.text_input("Empty Note Block", value="minecraft:redstone_lamp")
+elif layout_type == "Layout 2":
+    col_l1, col_l2 = st.columns(2)
+    layout_params["l2_base"] = col_l1.text_input("Block under Note Blocks", value="minecraft:oak_planks")
+    layout_params["l2_empty"] = col_l2.text_input("Empty Note Block", value="minecraft:redstone_lamp")
+elif layout_type == "Layout 3":
+    col_l1, col_l2 = st.columns(2)
+    layout_params["l3_base"] = col_l1.text_input("Block under Note Blocks", value="minecraft:oak_planks")
+    layout_params["l3_attempts"] = col_l2.number_input("Max Attempts", value=1000, step=100)
+
+    col_l3, col_l4 = st.columns(2)
+    layout_params["l3_speed"] = col_l3.number_input("X Speed (blocks/tick)", value=4, step=1)
+    layout_params["l3_prob"] = col_l4.number_input("Redstone Wire Probability", value=0.3, step=0.05)
 
 st.subheader("Export Configuration")
 export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
@@ -157,7 +178,7 @@ if generate_pressed:
             else:
                 full_layout = "Layout2 (Compact Serpentine)"
 
-            generator = StructureGenerator(df_prep, layout_type=full_layout, palettes=palettes, force_positive_coords=force_positive)
+            generator = StructureGenerator(df_prep, layout_type=full_layout, palettes=palettes, force_positive_coords=force_positive, layout_params=layout_params)
 
             progress_callback = None
             if "Layout3" in full_layout:
