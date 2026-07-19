@@ -7,6 +7,12 @@ from core.config import get_export_dir, update_export_dir
 
 st.header("Generate NBT Structure")
 
+# CANCEL BUTTON LOGIC
+col_title, col_cancel = st.columns([4, 1])
+if col_cancel.button("Annuler / Cancel", key="cancel_page2"):
+    st.warning("Action annulée.")
+    st.stop()
+
 uploaded_file_2 = st.file_uploader("Upload NBS file for Generation", type=["nbs"], key="nbs_upload_2")
 
 processor = None
@@ -30,6 +36,23 @@ processor = st.session_state.get('gen_processor', None)
 name = st.session_state.get('gen_name', "")
 temp_path_2 = st.session_state.get('gen_temp_path', "")
 
+st.subheader("Song Statistics")
+if processor and processor.data is not None and not processor.data.empty:
+    total_notes = len(processor.data)
+    max_tick = processor.data['tick'].max()
+    duration_secs = max_tick / processor.get_tempo() if processor.get_tempo() > 0 else 0
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Notes", f"{total_notes} 🎵")
+    col2.metric("Duration (Ticks)", f"{max_tick} ⏱️")
+    col3.metric("Duration (Seconds)", f"{duration_secs:.2f} s 🕒")
+else:
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Notes", "-")
+    col2.metric("Duration (Ticks)", "-")
+    col3.metric("Duration (Seconds)", "-")
+
+
 # Use segmented control for Layout as requested
 layout_type = st.segmented_control(
     "Select Structure Layout:",
@@ -39,34 +62,45 @@ layout_type = st.segmented_control(
     disabled=(processor is None)
 )
 
-export_mode = st.selectbox("Generation Mode:", ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"], disabled=(processor is None))
-force_positive = st.checkbox("Force Positive Coordinates (Layout 3)", value=False, disabled=(processor is None or layout_type != "Layout 3"))
+export_mode = st.segmented_control(
+    "Generation Mode:",
+    ["Single Monolithic File", "Dynamic Multi-Part (Structure Blocks)"],
+    default="Single Monolithic File",
+    selection_mode="single",
+    disabled=(processor is None)
+)
+
+# Render force_positive only if Layout 3 is selected
+force_positive = False
+if layout_type == "Layout 3":
+    force_positive = st.checkbox("Force Positive Coordinates (Layout 3)", value=False, disabled=(processor is None))
 
 st.subheader("Export Configuration")
 export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
 custom_out_name = st.text_input("Output File Name (without .nbt)", value=name.lower() if name else "structure_output", disabled=(processor is None))
 
 st.subheader("Decoration Palette")
+palettes = {}
+if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
+    col1, col2, col3 = st.columns(3)
 
-col1, col2, col3 = st.columns(3)
+    with col1:
+        floor_options = ["stone", "andesite", "cobblestone", "mossy_cobblestone", "oak_planks", "grass_block", "dirt"]
+        selected_floor = st.multiselect("Floor Blocks", floor_options, default=["stone"], disabled=(processor is None))
+    with col2:
+        flower_options = ["poppy", "dandelion", "azure_bluet", "red_tulip", "pink_tulip", "oxeye_daisy", "cornflower", "lily_of_the_valley"]
+        selected_flowers = st.multiselect("Flowers / Ground Decor", flower_options, default=["poppy", "dandelion"], disabled=(processor is None))
+    with col3:
+        ceiling_options = ["lantern", "soul_lantern", "torch", "redstone_lamp", "ochre_froglight"]
+        selected_ceiling = st.multiselect("Lighting / Ceiling", ceiling_options, default=["lantern"], disabled=(processor is None))
 
-with col1:
-    floor_options = ["stone", "andesite", "cobblestone", "mossy_cobblestone", "oak_planks", "grass_block", "dirt"]
-    selected_floor = st.multiselect("Floor Blocks", floor_options, default=["stone"], disabled=(processor is None))
-with col2:
-    flower_options = ["poppy", "dandelion", "azure_bluet", "red_tulip", "pink_tulip", "oxeye_daisy", "cornflower", "lily_of_the_valley"]
-    selected_flowers = st.multiselect("Flowers / Ground Decor", flower_options, default=["poppy", "dandelion"], disabled=(processor is None))
-with col3:
-    ceiling_options = ["lantern", "soul_lantern", "torch", "redstone_lamp", "ochre_froglight"]
-    selected_ceiling = st.multiselect("Lighting / Ceiling", ceiling_options, default=["lantern"], disabled=(processor is None))
+    palettes = {
+        "floor": selected_floor,
+        "flowers": selected_flowers,
+        "ceiling": selected_ceiling
+    }
 
-palettes = {
-    "floor": selected_floor,
-    "flowers": selected_flowers,
-    "ceiling": selected_ceiling
-}
-
-if st.button("Generate NBT", disabled=(processor is None or layout_type is None), type="primary"):
+if st.button("Generate NBT", disabled=(processor is None or layout_type is None or export_mode is None), type="primary"):
     # Update config file
     update_export_dir(export_dir_input)
     export_dir = get_export_dir()

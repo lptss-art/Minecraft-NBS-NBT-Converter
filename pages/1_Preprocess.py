@@ -6,6 +6,12 @@ from core.MusicData import MusicData
 
 st.header("Pre-process NBS")
 
+# CANCEL BUTTON LOGIC
+col_title, col_cancel = st.columns([4, 1])
+if col_cancel.button("Annuler / Cancel", key="cancel_page1"):
+    st.warning("Action annulée.")
+    st.stop()
+
 uploaded_file = st.file_uploader("Upload NBS file", type=["nbs"], key="nbs_upload_1")
 
 if uploaded_file is not None:
@@ -70,13 +76,37 @@ instrument_values = {'didgeridoo': -2, 'bass': -2, 'guitar': -1, 'banjo': 0, 'pl
 PRESET_FILE = "instrument_presets.json"
 
 def load_presets():
+    p = {}
     if os.path.exists(PRESET_FILE):
         try:
             with open(PRESET_FILE, "r") as f:
-                return json.load(f)
+                p = json.load(f)
         except Exception:
-            return {}
-    return {}
+            pass
+
+    # Ensure default presets exist
+    dirty = False
+    if "vierge" not in p:
+        p["vierge"] = { f"{o}_{i}": False for o in octaves for i in instruments }
+        dirty = True
+
+    if "default" not in p:
+        p["default"] = { f"{o}_{i}": False for o in octaves for i in instruments }
+        # Default asks for bass, harp, bell in their two native notes
+        # Bass (-2, -1), Harp (0, 1), Bell (2, 3)
+        for o in [-2, -1]:
+            p["default"][f"{o}_bass"] = True
+        for o in [0, 1]:
+            p["default"][f"{o}_harp"] = True
+        for o in [2, 3]:
+            p["default"][f"{o}_bell"] = True
+        dirty = True
+
+    if dirty:
+        with open(PRESET_FILE, "w") as f:
+            json.dump(p, f, indent=4)
+
+    return p
 
 def save_presets(presets):
     with open(PRESET_FILE, "w") as f:
@@ -84,21 +114,22 @@ def save_presets(presets):
 
 presets = load_presets()
 
-# Initialize session state for matrix if needed
+# Initialize session state for matrix if needed, load from default
 if 'instrument_matrix' not in st.session_state:
-    st.session_state.instrument_matrix = { f"{o}_{i}": False for o in octaves for i in instruments }
+    st.session_state.instrument_matrix = presets["default"].copy()
 
 col_p1, col_p2, col_p3 = st.columns([2, 1, 1])
-preset_names = ["-- Custom / Default --"] + list(presets.keys())
-selected_preset_name = col_p1.selectbox("Load Preset", preset_names)
+preset_names = list(presets.keys())
+# Set 'default' as the default index if it exists
+default_idx = preset_names.index("default") if "default" in preset_names else 0
+selected_preset_name = col_p1.selectbox("Load Preset", preset_names, index=default_idx)
 
 if col_p2.button("Load", use_container_width=True):
-    if selected_preset_name != "-- Custom / Default --":
-        loaded_matrix = presets[selected_preset_name]
-        for key in st.session_state.instrument_matrix:
-            if key in loaded_matrix:
-                st.session_state.instrument_matrix[key] = loaded_matrix[key]
-        st.success(f"Loaded preset {selected_preset_name}")
+    loaded_matrix = presets[selected_preset_name]
+    for key in st.session_state.instrument_matrix:
+        if key in loaded_matrix:
+            st.session_state.instrument_matrix[key] = loaded_matrix[key]
+    st.success(f"Loaded preset {selected_preset_name}")
 
 new_preset_name = col_p3.text_input("Save as Preset Name", placeholder="MyPreset")
 if col_p3.button("Save", use_container_width=True):
@@ -109,7 +140,26 @@ if col_p3.button("Save", use_container_width=True):
     else:
         st.error("Please enter a name.")
 
-st.write("*Color Legend: 🟦 Blue = Native Minecraft Octave Range (2 octaves), ⬜ Gray = Below Range, 🟨 Yellow = Above Range. Click the cells to toggle.*")
+# Custom CSS for the instrument grid toggles to hide text and show pure color
+st.markdown("""
+<style>
+/* Target only the grid buttons based on our specific prefix */
+div[class*="st-key-btn_grid_"] button p {
+    color: transparent !important; /* hide the text/emoji */
+}
+/* By default, all grid buttons are faded out slightly */
+div[class*="st-key-btn_grid_"] button {
+    background-color: rgba(120, 120, 120, 0.2) !important;
+    border: none;
+    height: 2.5rem;
+}
+/* Active buttons take a bright color based on native ranges if we wanted,
+   but for now let's just make it a bright green/blue when active. */
+div[class*="st-key-btn_grid_active_"] button {
+    background-color: rgba(0, 150, 255, 1) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 def toggle_instrument(o, i):
     key = f"{o}_{i}"
@@ -128,23 +178,20 @@ for idx, i in enumerate(instruments):
 for o in octaves:
     row_cols = st.columns([1.5] + [1]*len(instruments))
     with row_cols[0]:
-        st.write(f"**Octave {o}**")
+        # Rename -3 to 4 as F#0 to F#7
+        octave_label = f"F♯{o + 3}"
+        st.write(f"**{octave_label}**")
+
     for idx, i in enumerate(instruments):
-        val = instrument_values[i]
-
-        if o < val:
-            color = "⬜"
-        elif o == val or o == val + 1:
-            color = "🟦"
-        else:
-            color = "🟨"
-
         key = f"{o}_{i}"
         is_active = st.session_state.instrument_matrix.get(key, False)
-        label = f"{color} {'✅' if is_active else '❌'}"
+
+        # We append _active to the key for CSS targeting if it is selected
+        css_key = f"btn_grid_active_{key}" if is_active else f"btn_grid_inactive_{key}"
 
         with row_cols[idx+1]:
-            st.button(label, key=f"btn_{key}", on_click=toggle_instrument, args=(o, i), use_container_width=True)
+            # The label text will be hidden by our CSS
+            st.button("X", key=css_key, on_click=toggle_instrument, args=(o, i), use_container_width=True)
 
 if st.button("Save & Process", disabled=(processor is None), type="primary"):
     import numpy as np
