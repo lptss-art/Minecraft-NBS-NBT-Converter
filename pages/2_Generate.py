@@ -92,16 +92,16 @@ st.subheader("Layout Personalization")
 layout_params = {}
 if layout_type == "Layout 1":
     col_l1, col_l2, col_l3 = st.columns(3)
-    layout_params["l1_glass"] = col_l1.text_input("Block under Note Blocks", value="minecraft:glass")
+    layout_params["l1_glass"] = col_l1.text_input("Support Block (Redstone, etc.)", value="minecraft:glass")
     layout_params["l1_base"] = col_l2.text_input("Central Base Material", value="minecraft:polished_blackstone_bricks")
     layout_params["l1_empty"] = col_l3.text_input("Empty Note Block", value="minecraft:redstone_lamp")
 elif layout_type == "Layout 2":
     col_l1, col_l2 = st.columns(2)
-    layout_params["l2_base"] = col_l1.text_input("Block under Note Blocks", value="minecraft:oak_planks")
+    layout_params["l2_base"] = col_l1.text_input("Support Block (Redstone, etc.)", value="minecraft:oak_planks")
     layout_params["l2_empty"] = col_l2.text_input("Empty Note Block", value="minecraft:redstone_lamp")
 elif layout_type == "Layout 3":
     col_l1, col_l2 = st.columns(2)
-    layout_params["l3_base"] = col_l1.text_input("Block under Note Blocks", value="minecraft:oak_planks")
+    layout_params["l3_base"] = col_l1.text_input("Support Block (Redstone, etc.)", value="minecraft:oak_planks")
     layout_params["l3_attempts"] = col_l2.number_input("Max Attempts", value=1000, step=100)
 
     col_l3, col_l4 = st.columns(2)

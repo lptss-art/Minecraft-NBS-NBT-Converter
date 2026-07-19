@@ -11,16 +11,6 @@ class Layout2Brick(LayoutBase):
         super().__init__(x=x, y=y, z=z, facing=facing, direction=direction)
         
 
-    def add_note_to_brick(self, brick, x, y, z, note):
-        super().add_note_to_brick(brick, x, y, z, note)
-        # Override the instrument block placed by base class
-        # It placed `instr_name` at y-1
-        # If user specified a base, we force it.
-        # However, LayoutBase automatically uses the instrument mapping. The user requested:
-        # "le bloc sous les noteblock. (du bois par default)"
-        # So we just replace the block below.
-        brick.add_block(x, y - 1, z, getattr(self, "l2_base_cached", "minecraft:oak_planks"), {}, tick=self.tick, needs_down=True)
-
     def build(self, notes_integer=None, notes_half=None, delay=1, en_L=False, l2_base="minecraft:oak_planks", l2_empty="minecraft:redstone_lamp"):
         self.l2_base_cached = l2_base
         """

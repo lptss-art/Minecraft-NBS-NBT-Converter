@@ -161,10 +161,6 @@ class Layout1Brick(LayoutBase):
 
 
 
-    def add_note_to_brick(self, brick, x, y, z, note):
-        super().add_note_to_brick(brick, x, y, z, note)
-        brick.add_block(x, y - 1, z, getattr(self, "note_bottom_block", "minecraft:glass"), {}, tick=self.tick, needs_down=True)
-
     def build(self, notes_integer=None, notes_half=None, delay=1, empty_note="minecraft:redstone_lamp"):
         """
         Builds a single tick's worth of blocks for the straight layout.

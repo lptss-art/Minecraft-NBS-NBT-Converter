@@ -333,10 +333,6 @@ class Layout3Brick(LayoutBase):
             print(msg, end=end)
 
 
-    def add_note(self, x, y, z, note):
-        super().add_note(x, y, z, note)
-        self.add_block(x, y, z, getattr(self, "l3_base", "minecraft:oak_planks"), {}, tick=self.tick, needs_down=True)
-
     def add_note_organic(self, note, target_x, target_z, target_tick, is_half):
         """
         Tente de poser une note au bon tick.

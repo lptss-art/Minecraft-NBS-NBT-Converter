@@ -35,10 +35,20 @@ class StructureGenerator:
 
         # Before decoration, we must resolve all 'needs_down' constraints
         # using a default floor block, e.g. stone or wood if specified
-        if self.palettes and self.palettes.get('floor'):
-            floor_block_name = f"minecraft:{self.palettes['floor'][0]}"
-        else:
-            floor_block_name = "minecraft:stone"
+        # Determine floor block from layout parameters if provided, else use palette floor
+        floor_block_name = None
+        if "Layout1" in self.layout_type:
+            floor_block_name = self.layout_params.get("l1_glass")
+        elif "Layout2" in self.layout_type:
+            floor_block_name = self.layout_params.get("l2_base")
+        elif "Layout3" in self.layout_type:
+            floor_block_name = self.layout_params.get("l3_base")
+
+        if not floor_block_name:
+            if self.palettes and self.palettes.get('floor'):
+                floor_block_name = f"minecraft:{self.palettes['floor'][0]}"
+            else:
+                floor_block_name = "minecraft:stone"
 
         self.global_data.clean(floor_block_name)
 
