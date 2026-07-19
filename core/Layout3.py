@@ -617,14 +617,44 @@ class Layout3Brick(LayoutBase):
         # Si tick_diff == 0 : On pose la note. On veut s'écarter du chemin (reverse=True -> pire direction d'abord).
         sort_reversed = (tick_diff == 0)
 
-        # On trie les directions en utilisant la distance classique
-        free_dirs.sort(
-            key=lambda d: math.hypot(
-                (current_anchor.x + d[0]) - target_data['x'], 
-                (current_anchor.z + d[1]) - target_data['z']
-            ),
-            reverse=sort_reversed
-        )
+        if tick_diff == 0:
+            unoccupied_dirs = []
+            for d in free_dirs:
+                test_x = current_anchor.x + d[0]
+                test_z = current_anchor.z + d[1]
+                if not current_notes.is_occupied(test_x, test_z) and not current_redstone.is_occupied(test_x, test_z):
+                    unoccupied_dirs.append(d)
+            free_dirs = unoccupied_dirs
+
+            wire_capable_dirs = []
+            for d in free_dirs:
+                test_x = current_anchor.x + d[0]
+                test_z = current_anchor.z + d[1]
+                if not current_redstone.is_blocked(test_x, test_z, current_anchor.tick, current_anchor.is_half) and not current_notes.is_blocked(test_x, test_z, current_anchor.tick, current_anchor.is_half):
+                    wire_capable_dirs.append(d)
+
+            free_dirs.sort(
+                key=lambda d: math.hypot(
+                    (current_anchor.x + d[0]) - target_data['x'],
+                    (current_anchor.z + d[1]) - target_data['z']
+                ),
+                reverse=sort_reversed
+            )
+
+            if len(wire_capable_dirs) == 1:
+                the_dir = wire_capable_dirs[0]
+                if the_dir in free_dirs:
+                    free_dirs.remove(the_dir)
+                    free_dirs.append(the_dir)
+        else:
+            # On trie les directions en utilisant la distance classique
+            free_dirs.sort(
+                key=lambda d: math.hypot(
+                    (current_anchor.x + d[0]) - target_data['x'],
+                    (current_anchor.z + d[1]) - target_data['z']
+                ),
+                reverse=sort_reversed
+            )
 
         for direction in free_dirs:
             dx, dz = direction
