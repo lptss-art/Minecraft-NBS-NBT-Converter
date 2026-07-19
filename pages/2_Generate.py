@@ -7,8 +7,26 @@ from core.config import get_export_dir, update_export_dir
 
 st.header("Generate NBT Structure")
 
+st.markdown('''
+<style>
+/* Make all cancel buttons red */
+div[class*="st-key-btn_cancel"] button {
+    background-color: #ff4b4b !important;
+    color: white !important;
+}
 
-uploaded_file_2 = st.file_uploader("Upload NBS file for Generation", type=["nbs"], key="nbs_upload_2")
+/* Make all generation buttons green */
+div[class*="st-key-btn_generate"] button {
+    background-color: #00cc66 !important;
+    color: white !important;
+}
+</style>
+''', unsafe_allow_html=True)
+
+
+col_up, col_stats = st.columns(2)
+with col_up:
+    uploaded_file_2 = st.file_uploader("Upload NBS file for Generation", type=["nbs"], key="nbs_upload_2")
 
 processor = None
 name = ""
@@ -31,21 +49,20 @@ processor = st.session_state.get('gen_processor', None)
 name = st.session_state.get('gen_name', "")
 temp_path_2 = st.session_state.get('gen_temp_path', "")
 
-st.subheader("Song Statistics")
-if processor and processor.data is not None and not processor.data.empty:
-    total_notes = len(processor.data)
-    max_tick = processor.data['tick'].max()
-    duration_secs = max_tick / processor.get_tempo() if processor.get_tempo() > 0 else 0
+with col_stats:
+    if processor and processor.data is not None and not processor.data.empty:
+        total_notes = len(processor.data)
+        max_tick = processor.data['tick'].max()
+        duration_secs = max_tick / processor.get_tempo() if processor.get_tempo() > 0 else 0
+        s_col1, s_col2 = st.columns(2)
+        s_col1.metric("Total Notes", f"{total_notes} 🎵")
+        s_col1.metric("Duration (Ticks)", f"{max_tick} ⏱️")
+        s_col2.metric("Duration (Seconds)", f"{duration_secs:.2f} s 🕒")
+    else:
+        st.write("Upload a file to see statistics.")
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Notes", f"{total_notes} 🎵")
-    col2.metric("Duration (Ticks)", f"{max_tick} ⏱️")
-    col3.metric("Duration (Seconds)", f"{duration_secs:.2f} s 🕒")
-else:
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Notes", "-")
-    col2.metric("Duration (Ticks)", "-")
-    col3.metric("Duration (Seconds)", "-")
+
+
 
 
 # Use segmented control for Layout as requested
@@ -96,12 +113,18 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
     }
 
 
-col_act1, col_act2 = st.columns([1, 1])
-if col_act2.button("Annuler / Cancel", key="cancel_page2_bottom"):
-    st.warning("Action annulée.")
-    st.stop()
 
-if col_act1.button("Generate NBT", disabled=(processor is None or layout_type is None or export_mode is None), type="primary"):
+
+
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    generate_pressed = st.button("Generate NBT", disabled=(processor is None or layout_type is None or export_mode is None), type="primary", key="btn_generate")
+with col_btn2:
+    if st.button("Cancel", type="primary", key="btn_cancel"):
+        st.rerun()
+
+if generate_pressed:
+
     # Update config file
     update_export_dir(export_dir_input)
     export_dir = get_export_dir()

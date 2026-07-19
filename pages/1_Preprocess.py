@@ -6,8 +6,9 @@ from core.MusicData import MusicData
 
 st.header("Pre-process NBS")
 
-
-uploaded_file = st.file_uploader("Upload NBS file", type=["nbs"], key="nbs_upload_1")
+col_up, col_stats = st.columns(2)
+with col_up:
+    uploaded_file = st.file_uploader("Upload NBS file", type=["nbs"], key="nbs_upload_1")
 
 if uploaded_file is not None:
     if not os.path.exists("temp"):
@@ -15,49 +16,45 @@ if uploaded_file is not None:
     temp_path = os.path.join("temp", uploaded_file.name)
     with open(temp_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-
     st.success(f"File {uploaded_file.name} loaded successfully!")
-
     processor = MusicData()
     name = processor.read_file(temp_path)
-
     st.session_state.current_processor = processor
     st.session_state.current_name = name
 
-# Always show the rest of the page UI, disabled or default if no file
 processor = st.session_state.get('current_processor', None)
 name = st.session_state.get('current_name', "")
 
+with col_stats:
+    if processor and processor.data is not None and not processor.data.empty:
+        total_notes = len(processor.data)
+        max_tick = processor.data['tick'].max()
+        duration_secs = max_tick / processor.get_tempo() if processor.get_tempo() > 0 else 0
+        s_col1, s_col2 = st.columns(2)
+        s_col1.metric("Total Notes", f"{total_notes} 🎵")
+        s_col1.metric("Duration (Ticks)", f"{max_tick} ⏱️")
+        s_col2.metric("Duration (Seconds)", f"{duration_secs:.2f} s 🕒")
+    else:
+        st.write("Upload a file to see statistics.")
+
+
+
 st.subheader("File Parameters")
-output_name = st.text_input("Output File Name", value=f"{name}_updated" if name else "updated_song", disabled=(processor is None))
+col_p_left, col_p_right = st.columns(2)
+with col_p_left:
+    output_name = st.text_input("Output File Name", value=f"{name}_updated" if name else "updated_song", disabled=(processor is None))
+with col_p_right:
+    if processor:
+        tempo = processor.get_tempo()
+        st.write(f"**Input Tempo:** {tempo:.2f} tps")
+        adjust_tempo = st.checkbox("Adjust Tempo", value=False)
+        tempos = processor.get_tempos()
+        selected_tempo_idx = st.selectbox("Choose tempo:", range(len(tempos)), format_func=lambda i: tempos[i], index=1 if len(tempos) > 1 else 0)
+    else:
+        st.write("**Input Tempo:** N/A")
+        adjust_tempo = st.checkbox("Adjust Tempo", value=False, disabled=True)
+        st.selectbox("Choose tempo:", ["N/A"], disabled=True)
 
-if processor:
-    tempo = processor.get_tempo()
-    st.write(f"**Input Tempo:** {tempo:.2f} tps")
-
-    adjust_tempo = st.checkbox("Adjust Tempo", value=False)
-    tempos = processor.get_tempos()
-    selected_tempo_idx = st.selectbox("Choose tempo:", range(len(tempos)), format_func=lambda i: tempos[i], index=1 if len(tempos) > 1 else 0)
-else:
-    st.write("**Input Tempo:** N/A")
-    adjust_tempo = st.checkbox("Adjust Tempo", value=False, disabled=True)
-    st.selectbox("Choose tempo:", ["N/A"], disabled=True)
-
-st.subheader("Song Statistics")
-if processor and processor.data is not None and not processor.data.empty:
-    total_notes = len(processor.data)
-    max_tick = processor.data['tick'].max()
-    duration_secs = max_tick / processor.get_tempo() if processor.get_tempo() > 0 else 0
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Notes", f"{total_notes} 🎵")
-    col2.metric("Duration (Ticks)", f"{max_tick} ⏱️")
-    col3.metric("Duration (Seconds)", f"{duration_secs:.2f} s 🕒")
-else:
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Notes", "-")
-    col2.metric("Duration (Ticks)", "-")
-    col3.metric("Duration (Seconds)", "-")
 
 st.subheader("Instruments by Octave")
 
@@ -113,11 +110,10 @@ presets = load_presets()
 if 'instrument_matrix' not in st.session_state:
     st.session_state.instrument_matrix = presets["default"].copy()
 
-col_p1, col_p2, col_p3 = st.columns([2, 1, 1])
+col_p1, col_p2, col_p3, col_p4 = st.columns([2, 1, 2, 1])
 preset_names = list(presets.keys())
-# Set 'default' as the default index if it exists
 default_idx = preset_names.index("default") if "default" in preset_names else 0
-selected_preset_name = col_p1.selectbox("Load Preset", preset_names, index=default_idx)
+selected_preset_name = col_p1.selectbox("Load Preset", preset_names, index=default_idx, label_visibility="collapsed")
 
 if col_p2.button("Load", use_container_width=True):
     loaded_matrix = presets[selected_preset_name]
@@ -126,8 +122,8 @@ if col_p2.button("Load", use_container_width=True):
             st.session_state.instrument_matrix[key] = loaded_matrix[key]
     st.success(f"Loaded preset {selected_preset_name}")
 
-new_preset_name = col_p3.text_input("Save as Preset Name", placeholder="MyPreset")
-if col_p3.button("Save", use_container_width=True):
+new_preset_name = col_p3.text_input("Save as Preset Name", placeholder="MyPreset", label_visibility="collapsed")
+if col_p4.button("Save", use_container_width=True):
     if new_preset_name.strip():
         presets[new_preset_name.strip()] = st.session_state.instrument_matrix
         save_presets(presets)
@@ -138,6 +134,18 @@ if col_p3.button("Save", use_container_width=True):
 # Custom CSS for the instrument grid toggles to hide text and show pure color
 st.markdown("""
 <style>
+/* Make all cancel buttons red */
+div[class*="st-key-btn_cancel"] button {
+    background-color: #ff4b4b !important;
+    color: white !important;
+}
+
+/* Make all generation buttons green */
+div[class*="st-key-btn_generate"] button {
+    background-color: #00cc66 !important;
+    color: white !important;
+}
+
 /* Hide text on all grid buttons */
 div[class*="st-key-btn_grid_"] button p {
     color: transparent !important;
@@ -148,16 +156,16 @@ div[class*="st-key-btn_grid_"] button {
 }
 
 /* Gray - Below Range */
-div[class*="st-key-btn_grid_gray_inactive_"] button { background-color: rgba(160, 160, 160, 0.3) !important; }
-div[class*="st-key-btn_grid_gray_active_"] button   { background-color: rgba(100, 100, 100, 1) !important; }
+div[class*="st-key-btn_grid_gray_inactive_"] button { background-color: #a0a0a0 !important; opacity: 0.3; }
+div[class*="st-key-btn_grid_gray_active_"] button   { background-color: #a0a0a0 !important; opacity: 1; }
 
 /* Blue - Native Range */
-div[class*="st-key-btn_grid_blue_inactive_"] button { background-color: rgba(135, 206, 235, 0.3) !important; } /* Sky Blue faded */
-div[class*="st-key-btn_grid_blue_active_"] button   { background-color: rgba(30, 144, 255, 1) !important; } /* Dodger Blue bright */
+div[class*="st-key-btn_grid_blue_inactive_"] button { background-color: #1e90ff !important; opacity: 0.3; }
+div[class*="st-key-btn_grid_blue_active_"] button   { background-color: #1e90ff !important; opacity: 1; }
 
 /* Yellow - Above Range */
-div[class*="st-key-btn_grid_yellow_inactive_"] button { background-color: rgba(255, 255, 153, 0.3) !important; }
-div[class*="st-key-btn_grid_yellow_active_"] button   { background-color: rgba(255, 215, 0, 1) !important; } /* Gold */
+div[class*="st-key-btn_grid_yellow_inactive_"] button { background-color: #ffd700 !important; opacity: 0.3; }
+div[class*="st-key-btn_grid_yellow_active_"] button   { background-color: #ffd700 !important; opacity: 1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -175,7 +183,7 @@ with header_cols[0]:
     st.write("**Octave**")
 for idx, i in enumerate(instruments):
     with header_cols[idx+1]:
-        st.write(f"**{i[:4]}**")
+        st.write(f"**{i}**")
 
 # Grid rows
 for o in octaves:
@@ -204,12 +212,18 @@ for o in octaves:
             st.button("X", key=css_key, on_click=toggle_instrument, args=(o, i), use_container_width=True)
 
 
-col_act1, col_act2 = st.columns([1, 1])
-if col_act2.button("Annuler / Cancel", key="cancel_page1_bottom"):
-    st.warning("Action annulée.")
-    st.stop()
 
-if col_act1.button("Save & Process", disabled=(processor is None), type="primary"):
+
+
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    process_pressed = st.button("Save & Process", disabled=(processor is None), type="primary", key="btn_generate")
+with col_btn2:
+    if st.button("Cancel", type="primary", key="btn_cancel"):
+        st.rerun()
+
+if process_pressed:
+
     import numpy as np
 
     # Convert session state dict back to numpy matrix (octaves x instruments)

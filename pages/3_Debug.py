@@ -3,18 +3,41 @@ from core.config import get_export_dir, update_export_dir
 
 st.header("Debug / Test Generation")
 
+st.markdown('''
+<style>
+/* Make all cancel buttons red */
+div[class*="st-key-btn_cancel"] button {
+    background-color: #ff4b4b !important;
+    color: white !important;
+}
+
+/* Make all generation buttons green */
+div[class*="st-key-btn_generate"] button {
+    background-color: #00cc66 !important;
+    color: white !important;
+}
+</style>
+''', unsafe_allow_html=True)
+
+
 
 st.write("Generate complex note block structures (Lego bricks) to test layout limits and transformations directly in Minecraft.")
 
 debug_export_dir_input = st.text_input("Export Directory Path (Debug)", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
 
 
-col_act1, col_act2 = st.columns([1, 1])
-if col_act2.button("Annuler / Cancel", key="cancel_page3_bottom"):
-    st.warning("Action annulée.")
-    st.stop()
 
-if col_act1.button("Generate Test Blocks", type="primary"):
+
+
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    test_pressed = st.button("Generate Test Blocks", type="primary", key="btn_generate")
+with col_btn2:
+    if st.button("Cancel", type="primary", key="btn_cancel"):
+        st.rerun()
+
+if test_pressed:
+
     from tools.debug_generator import generate_test_blocks
 
     # Update config file
