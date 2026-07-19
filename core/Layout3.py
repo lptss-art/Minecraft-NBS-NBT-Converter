@@ -162,14 +162,31 @@ class AnchorManagerLayer:
     def get_anchor(self, x, z):
         """
         Cherche et retourne une ancre active située aux coordonnées exactes (x, z).
-        Renvoie None si aucune ancre n'existe à cet emplacement ou si elle a été supprimée.
+        OPTIMISATION MAJEURE : Plus de construction de liste géante.
         """
-        # On passe par get_all_active_anchors pour respecter la logique 
-        # d'héritage des calques et des ancres supprimées.
-        for anchor in self.get_all_active_anchors():
-            if anchor.x == x and anchor.z == z:
-                return anchor
-                
+        # 1. OPTIMISATION DFS : 99% du temps, on cherche l'ancre qu'on vient juste d'ajouter au calque
+        if self.active_anchors:
+            # On regarde la dernière ajoutée (O(1) - instantané)
+            last = self.active_anchors[-1]
+            if last.x == x and last.z == z:
+                return last
+
+            # Au cas où, on regarde les autres du calque actuel
+            for anchor in self.active_anchors:
+                if anchor.x == x and anchor.z == z:
+                    return anchor
+
+        # 2. OPTIMISATION COMMIT : Si on ne l'a pas trouvée, on remonte l'historique
+        # mais SANS utiliser get_all_active_anchors() pour éviter de surcharger la RAM.
+        removed = set()
+        current = self
+        while current:
+            removed.update(current.removed_anchors)
+            for anchor in current.active_anchors:
+                if anchor.x == x and anchor.z == z and anchor not in removed:
+                    return anchor
+            current = current.parent
+
         return None
 
 
@@ -234,6 +251,22 @@ class ExclusionMapLayer:
             return self.parent.is_blocked(target_x, target_z, current_tick, current_is_half)
         return False
 
+    def is_blocked_strict(self, target_x, target_z, current_tick, current_is_half):
+        """Vérifie si la position est bloquée, et s'assure qu'au maximum un seul conflit valide existe."""
+        count_valid = 0
+        current = self
+        while current:
+            if (target_x, target_z) in current.blocked_positions:
+                for conflict in current.blocked_positions[(target_x, target_z)]:
+                    if conflict['tick'] != current_tick or conflict['is_half'] != current_is_half:
+                        return True
+                    else:
+                        count_valid += 1
+                        if count_valid >= 2:
+                            return True
+            current = current.parent
+        return False
+
 class Layout3Brick(LayoutBase):
     """
     Chef d'orchestre de la génération organique.
@@ -243,8 +276,9 @@ class Layout3Brick(LayoutBase):
     Manages the organic layout (Layout 3).
     Dynamic opportunistic generator using a score system and 2D backtracking.
     """
-    def __init__(self):
+    def __init__(self, force_positive_coords=False):
         super().__init__()
+        self.force_positive_coords = force_positive_coords
         # On définit une hauteur de base pour tout le circuit
         self.y_level = 0 
         
@@ -255,10 +289,11 @@ class Layout3Brick(LayoutBase):
         
         
         # On place le point de départ : (x, z, tick)
-       
-        self.anchor_manager.add_anchor(-1, -1, 0) 
-        self.impossible_redstone.occupy(-1, -1, 'start_block',-1)
-        self.impossible_notes.occupy(-1, -1, 'start_block',-1)
+
+        start_x, start_z = (-1, -1) if not self.force_positive_coords else (0, 0)
+        self.anchor_manager.add_anchor(start_x, start_z, 0)
+        self.impossible_redstone.occupy(start_x, start_z, 'start_block',-1)
+        self.impossible_notes.occupy(start_x, start_z, 'start_block',-1)
         
         # --- DEBUG TRACKING ---
         self.debug_total_ticks = 0
@@ -462,11 +497,13 @@ class Layout3Brick(LayoutBase):
 
         # 1. Vérification de l'occupation physique pour les 5 blocs
         for bx, bz in [(x1, z1), (x2, z2), (x3, z3), (x4, z4), (x5, z5)]:
+            if self.force_positive_coords and (bx < 0 or bz < 0):
+                return False
             if redstone_layer.is_occupied(bx, bz) or notes_layer.is_occupied(bx, bz):
                 return False
 
         # 2. Vérification des exclusions (court-circuits)
-        if redstone_layer.is_blocked(x1, z1, current_tick, False) or notes_layer.is_blocked(x1, z1, current_tick, False):
+        if redstone_layer.is_blocked_strict(x1, z1, current_tick, False) or notes_layer.is_blocked(x1, z1, current_tick, False):
             return False
         if redstone_layer.is_blocked(x2, z2, current_tick, False) or notes_layer.is_blocked(x2, z2, current_tick, False):
             return False
@@ -548,7 +585,7 @@ class Layout3Brick(LayoutBase):
         
         profondeur = len(commands_list)
         # Le \r permet de réécrire sur la même ligne dans la console
-        self._print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur}   ", end="\r")
+        self._print(f"Tick {self.debug_current_tick}/{self.debug_total_ticks} | Note {self.debug_current_note}/{self.debug_total_notes} | Profondeur layer : {profondeur} | Budget : {self.current_exploration_budget}   ", end="\r")
         
         
         # On calcule le temps restant dès le début, car cela va influencer notre stratégie de tri
@@ -556,19 +593,68 @@ class Layout3Brick(LayoutBase):
 
         free_dirs = current_anchors.get_free_directions(current_anchor)
         
+        if self.force_positive_coords:
+            valid_dirs = []
+            for d in free_dirs:
+                dx, dz = d
+                test_x = current_anchor.x + dx
+                test_z = current_anchor.z + dz
+                if test_x < 0 or test_z < 0:
+                    continue
+
+                # Check bounds for pistons (+4 footprint) if a piston is a possible outcome
+                if tick_diff == 0 and target_data['is_half'] and not current_anchor.is_half:
+                    piston_end_x = test_x + 4*dx
+                    piston_end_z = test_z + 4*dz
+                    if piston_end_x < 0 or piston_end_z < 0:
+                        continue
+
+                valid_dirs.append(d)
+            free_dirs = valid_dirs
+
         # L'ASTUCE MAGIQUE : 
         # Si tick_diff > 0 : On est en chemin (répéteur/redstone). On veut aller vers la cible (reverse=False).
         # Si tick_diff == 0 : On pose la note. On veut s'écarter du chemin (reverse=True -> pire direction d'abord).
         sort_reversed = (tick_diff == 0)
 
-        # On trie les directions en utilisant la distance classique
-        free_dirs.sort(
-            key=lambda d: math.hypot(
-                (current_anchor.x + d[0]) - target_data['x'], 
-                (current_anchor.z + d[1]) - target_data['z']
-            ),
-            reverse=sort_reversed
-        )
+        if tick_diff == 0:
+            unoccupied_dirs = []
+            for d in free_dirs:
+                test_x = current_anchor.x + d[0]
+                test_z = current_anchor.z + d[1]
+                if not current_notes.is_occupied(test_x, test_z) and not current_redstone.is_occupied(test_x, test_z):
+                    unoccupied_dirs.append(d)
+            free_dirs = unoccupied_dirs
+
+            wire_capable_dirs = []
+            for d in free_dirs:
+                test_x = current_anchor.x + d[0]
+                test_z = current_anchor.z + d[1]
+                if not current_redstone.is_blocked(test_x, test_z, current_anchor.tick, current_anchor.is_half) and not current_notes.is_blocked(test_x, test_z, current_anchor.tick, current_anchor.is_half):
+                    wire_capable_dirs.append(d)
+
+            free_dirs.sort(
+                key=lambda d: math.hypot(
+                    (current_anchor.x + d[0]) - target_data['x'],
+                    (current_anchor.z + d[1]) - target_data['z']
+                ),
+                reverse=sort_reversed
+            )
+
+            if len(wire_capable_dirs) == 1:
+                the_dir = wire_capable_dirs[0]
+                if the_dir in free_dirs:
+                    free_dirs.remove(the_dir)
+                    free_dirs.append(the_dir)
+        else:
+            # On trie les directions en utilisant la distance classique
+            free_dirs.sort(
+                key=lambda d: math.hypot(
+                    (current_anchor.x + d[0]) - target_data['x'],
+                    (current_anchor.z + d[1]) - target_data['z']
+                ),
+                reverse=sort_reversed
+            )
 
         for direction in free_dirs:
             dx, dz = direction
@@ -592,7 +678,7 @@ class Layout3Brick(LayoutBase):
 
 
 
-            if random.random() < 0.1: 
+            if random.random() < 0.3: 
                 actions_to_try.append('redstone')
 
 
@@ -637,7 +723,7 @@ class Layout3Brick(LayoutBase):
 
 
             # --- NOUVEAU : Application de la limite de signal ---
-            if redstone_chain_length >= 4:
+            if redstone_chain_length >= 8:
                 # Le signal est épuisé ! On s'interdit formellement de prolonger le câble.
                 if 'redstone' in actions_to_try:
                     actions_to_try.remove('redstone')
@@ -717,8 +803,8 @@ class Layout3Track(Brick):
     def __init__(self):
         super().__init__()
 
-    def build_sequence(self, df_notes, progress_callback=None):
-        brick = Layout3Brick()
+    def build_sequence(self, df_notes, progress_callback=None, force_positive_coords=False):
+        brick = Layout3Brick(force_positive_coords=force_positive_coords)
         brick.progress_callback = progress_callback
         
         # --- 1. PRÉPARATION DU DEBUG ---
