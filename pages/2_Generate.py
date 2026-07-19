@@ -7,11 +7,6 @@ from core.config import get_export_dir, update_export_dir
 
 st.header("Generate NBT Structure")
 
-# CANCEL BUTTON LOGIC
-col_title, col_cancel = st.columns([4, 1])
-if col_cancel.button("Annuler / Cancel", key="cancel_page2"):
-    st.warning("Action annulée.")
-    st.stop()
 
 uploaded_file_2 = st.file_uploader("Upload NBS file for Generation", type=["nbs"], key="nbs_upload_2")
 
@@ -100,7 +95,13 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         "ceiling": selected_ceiling
     }
 
-if st.button("Generate NBT", disabled=(processor is None or layout_type is None or export_mode is None), type="primary"):
+
+col_act1, col_act2 = st.columns([1, 1])
+if col_act2.button("Annuler / Cancel", key="cancel_page2_bottom"):
+    st.warning("Action annulée.")
+    st.stop()
+
+if col_act1.button("Generate NBT", disabled=(processor is None or layout_type is None or export_mode is None), type="primary"):
     # Update config file
     update_export_dir(export_dir_input)
     export_dir = get_export_dir()

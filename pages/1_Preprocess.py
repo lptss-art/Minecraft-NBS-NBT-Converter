@@ -6,11 +6,6 @@ from core.MusicData import MusicData
 
 st.header("Pre-process NBS")
 
-# CANCEL BUTTON LOGIC
-col_title, col_cancel = st.columns([4, 1])
-if col_cancel.button("Annuler / Cancel", key="cancel_page1"):
-    st.warning("Action annulée.")
-    st.stop()
 
 uploaded_file = st.file_uploader("Upload NBS file", type=["nbs"], key="nbs_upload_1")
 
@@ -143,23 +138,31 @@ if col_p3.button("Save", use_container_width=True):
 # Custom CSS for the instrument grid toggles to hide text and show pure color
 st.markdown("""
 <style>
-/* Target only the grid buttons based on our specific prefix */
+/* Hide text on all grid buttons */
 div[class*="st-key-btn_grid_"] button p {
-    color: transparent !important; /* hide the text/emoji */
+    color: transparent !important;
 }
-/* By default, all grid buttons are faded out slightly */
 div[class*="st-key-btn_grid_"] button {
-    background-color: rgba(120, 120, 120, 0.2) !important;
     border: none;
     height: 2.5rem;
 }
-/* Active buttons take a bright color based on native ranges if we wanted,
-   but for now let's just make it a bright green/blue when active. */
-div[class*="st-key-btn_grid_active_"] button {
-    background-color: rgba(0, 150, 255, 1) !important;
-}
+
+/* Gray - Below Range */
+div[class*="st-key-btn_grid_gray_inactive_"] button { background-color: rgba(160, 160, 160, 0.3) !important; }
+div[class*="st-key-btn_grid_gray_active_"] button   { background-color: rgba(100, 100, 100, 1) !important; }
+
+/* Blue - Native Range */
+div[class*="st-key-btn_grid_blue_inactive_"] button { background-color: rgba(135, 206, 235, 0.3) !important; } /* Sky Blue faded */
+div[class*="st-key-btn_grid_blue_active_"] button   { background-color: rgba(30, 144, 255, 1) !important; } /* Dodger Blue bright */
+
+/* Yellow - Above Range */
+div[class*="st-key-btn_grid_yellow_inactive_"] button { background-color: rgba(255, 255, 153, 0.3) !important; }
+div[class*="st-key-btn_grid_yellow_active_"] button   { background-color: rgba(255, 215, 0, 1) !important; } /* Gold */
 </style>
 """, unsafe_allow_html=True)
+
+
+st.write("*Color Legend: 🟦 Blue = Native Minecraft Octave Range (2 octaves), ⬜ Gray = Below Range, 🟨 Yellow = Above Range. Active cells are vivid, inactive are faded. Click to toggle.*")
 
 def toggle_instrument(o, i):
     key = f"{o}_{i}"
@@ -183,17 +186,30 @@ for o in octaves:
         st.write(f"**{octave_label}**")
 
     for idx, i in enumerate(instruments):
+        val = instrument_values[i]
         key = f"{o}_{i}"
         is_active = st.session_state.instrument_matrix.get(key, False)
 
-        # We append _active to the key for CSS targeting if it is selected
-        css_key = f"btn_grid_active_{key}" if is_active else f"btn_grid_inactive_{key}"
+        if o < val:
+            base_color = "gray"
+        elif o == val or o == val + 1:
+            base_color = "blue"
+        else:
+            base_color = "yellow"
+
+        active_state = "active" if is_active else "inactive"
+        css_key = f"btn_grid_{base_color}_{active_state}_{key}"
 
         with row_cols[idx+1]:
-            # The label text will be hidden by our CSS
             st.button("X", key=css_key, on_click=toggle_instrument, args=(o, i), use_container_width=True)
 
-if st.button("Save & Process", disabled=(processor is None), type="primary"):
+
+col_act1, col_act2 = st.columns([1, 1])
+if col_act2.button("Annuler / Cancel", key="cancel_page1_bottom"):
+    st.warning("Action annulée.")
+    st.stop()
+
+if col_act1.button("Save & Process", disabled=(processor is None), type="primary"):
     import numpy as np
 
     # Convert session state dict back to numpy matrix (octaves x instruments)
