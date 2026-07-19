@@ -42,7 +42,16 @@ class Anchor:
         # Distance classique (ligne droite)
         dist = math.hypot(self.x - target_x, self.z - target_z)
         
-        tick_diff = target_tick - self.tick
+        effective_tick = self.tick
+        if not self.is_half:
+            pass
+        elif self.is_half and not target_is_half:
+            effective_tick += 1
+
+
+            
+        # On utilise le tick effectif pour le calcul de la différence
+        tick_diff = target_tick - effective_tick
         
         # Pénalité temporelle
         if tick_diff == 0:
@@ -153,11 +162,27 @@ class AnchorManagerLayer:
         if len(self.get_free_directions(anchor)) == 0:
             self.remove_anchor(anchor)
 
-    def remove_anchor(self, anchor):
+    def remove_anchor_old(self, anchor):
         if anchor in self.active_anchors:
             self.active_anchors.remove(anchor)
         else:
             self.removed_anchors.add(anchor)
+
+    def remove_anchor(self, anchor):
+        """
+        Version stricte : transperce l'architecture de calques (Shadowing) pour supprimer 
+        l'ancre définitivement de sa source dès qu'elle est retirée, quel que soit le niveau.
+        """
+        current = self
+        while current:
+            # Si l'ancre appartient physiquement à ce calque, on la détruit à la source
+            if anchor in current.active_anchors:
+                current.active_anchors.remove(anchor)
+                break # On l'a trouvée et tuée, on peut s'arrêter
+            
+            # Sinon, on s'assure de l'ajouter à la liste noire locale en remontant
+            current.removed_anchors.add(anchor)
+            current = current.parent
 
     def get_anchor(self, x, z):
         """
@@ -323,7 +348,7 @@ class Layout3Brick(LayoutBase):
             'is_half': is_half
         }
         
-        self.current_exploration_budget = 300
+        self.current_exploration_budget = 1000
         
         success = self.start_pathfinding(
             target_data,
@@ -580,6 +605,7 @@ class Layout3Brick(LayoutBase):
         
         self.current_exploration_budget -= 1
         if self.current_exploration_budget <= 0:
+            current_anchors.remove_anchor(current_anchor)
             return False # Budget épuisé : cet endroit est trop compliqué, on abandonne cette ancre !
         
         
@@ -589,7 +615,18 @@ class Layout3Brick(LayoutBase):
         
         
         # On calcule le temps restant dès le début, car cela va influencer notre stratégie de tri
-        tick_diff = target_data['tick'] - current_anchor.tick
+       
+        effective_tick = current_anchor.tick
+        if not current_anchor.is_half:
+            pass
+        elif current_anchor.is_half and not target_data['is_half']:
+            effective_tick += 1
+        elif not target_data['tick'] == current_anchor.tick:
+            effective_tick += 1
+        
+
+                
+        tick_diff = target_data['tick'] - effective_tick
 
         free_dirs = current_anchors.get_free_directions(current_anchor)
         
