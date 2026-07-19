@@ -122,7 +122,7 @@ with header_cols[0]:
     st.write("**Octave**")
 for idx, i in enumerate(instruments):
     with header_cols[idx+1]:
-        st.write(f"**{i[:4]}**", help=i)
+        st.write(f"**{i[:4]}**")
 
 # Grid rows
 for o in octaves:
