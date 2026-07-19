@@ -593,6 +593,25 @@ class Layout3Brick(LayoutBase):
 
         free_dirs = current_anchors.get_free_directions(current_anchor)
         
+        if self.force_positive_coords:
+            valid_dirs = []
+            for d in free_dirs:
+                dx, dz = d
+                test_x = current_anchor.x + dx
+                test_z = current_anchor.z + dz
+                if test_x < 0 or test_z < 0:
+                    continue
+
+                # Check bounds for pistons (+4 footprint) if a piston is a possible outcome
+                if tick_diff == 0 and target_data['is_half'] and not current_anchor.is_half:
+                    piston_end_x = test_x + 4*dx
+                    piston_end_z = test_z + 4*dz
+                    if piston_end_x < 0 or piston_end_z < 0:
+                        continue
+
+                valid_dirs.append(d)
+            free_dirs = valid_dirs
+
         # L'ASTUCE MAGIQUE : 
         # Si tick_diff > 0 : On est en chemin (répéteur/redstone). On veut aller vers la cible (reverse=False).
         # Si tick_diff == 0 : On pose la note. On veut s'écarter du chemin (reverse=True -> pire direction d'abord).
@@ -612,9 +631,6 @@ class Layout3Brick(LayoutBase):
             test_x = current_anchor.x + dx
             test_z = current_anchor.z + dz
             
-            if self.force_positive_coords and (test_x < 0 or test_z < 0):
-                continue
-
             # ==========================================
             # ÉTAPE 1 : DÉCISION (Quelles actions tenter ?)
             # ==========================================
