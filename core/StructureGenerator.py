@@ -83,6 +83,7 @@ class StructureGenerator:
         # }
 
         distance_bands = self.palettes.get("distance_bands", [])
+        redstone_band = self.palettes.get("redstone_band", None)
 
         # Fallback to old behavior if distance bands are not defined but old ones are
         if not distance_bands and self.palettes.get('floor'):
@@ -99,6 +100,7 @@ class StructureGenerator:
         # Get all base blocks (x, z) and their tick
         occupied_positions = set()
         base_blocks = {} # (x, z) -> min_tick
+        redstone_positions = set()
 
         for block in self.global_data.blocks:
             x, y, z = block['pos']
@@ -107,6 +109,9 @@ class StructureGenerator:
             tick = block['metadata'].get('tick', 0)
             if coord not in base_blocks or tick < base_blocks[coord]:
                 base_blocks[coord] = tick
+
+            if block['block_name'] == "minecraft:redstone_wire":
+                redstone_positions.add(coord)
 
         # Multi-source BFS for distances
         # Queue: ((x, z), distance, tick)
@@ -154,12 +159,29 @@ class StructureGenerator:
         data_deco = Brick()
 
         for (x, z), (dist, tick) in visited.items():
-            # Find which band this cell belongs to
             selected_band = None
-            for band in distance_bands:
-                if dist <= band["max_distance"]:
-                    selected_band = band
-                    break
+
+            # Check for redstone adjacency first
+            is_redstone_adjacent = False
+            if redstone_band and redstone_band.get("enabled", False):
+                # Check within 1-block radius (including diagonals and itself)
+                for dx in [-1, 0, 1]:
+                    for dz in [-1, 0, 1]:
+                        if (x + dx, z + dz) in redstone_positions:
+                            is_redstone_adjacent = True
+                            break
+                    if is_redstone_adjacent:
+                        break
+
+                if is_redstone_adjacent:
+                    selected_band = redstone_band
+
+            # Find which band this cell belongs to if not overridden by redstone
+            if not selected_band:
+                for band in distance_bands:
+                    if dist <= band["max_distance"]:
+                        selected_band = band
+                        break
 
             if not selected_band:
                 continue

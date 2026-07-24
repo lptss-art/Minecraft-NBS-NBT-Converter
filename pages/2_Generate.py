@@ -130,6 +130,7 @@ def load_deco_presets():
     dirty = False
     if "Default" not in p:
         p["Default"] = {
+            "redstone_band": {"enabled": False, "blocks": "glowstone:100", "top_prob": 0.0, "top_blocks": ""},
             "num_bands": 2,
             "bands": [
                 {"dist": 3, "blocks": "stone:80, andesite:20", "top_prob": 0.0, "top_blocks": ""},
@@ -139,6 +140,7 @@ def load_deco_presets():
         dirty = True
     if "Forest" not in p:
         p["Forest"] = {
+            "redstone_band": {"enabled": True, "blocks": "podzol:100", "top_prob": 0.0, "top_blocks": ""},
             "num_bands": 3,
             "bands": [
                 {"dist": 2, "blocks": "moss_block:100", "top_prob": 0.0, "top_blocks": ""},
@@ -149,6 +151,7 @@ def load_deco_presets():
         dirty = True
     if "Desert" not in p:
         p["Desert"] = {
+            "redstone_band": {"enabled": False, "blocks": "glowstone:100", "top_prob": 0.0, "top_blocks": ""},
             "num_bands": 2,
             "bands": [
                 {"dist": 4, "blocks": "sandstone:100", "top_prob": 0.0, "top_blocks": ""},
@@ -158,6 +161,7 @@ def load_deco_presets():
         dirty = True
     if "Nether" not in p:
         p["Nether"] = {
+            "redstone_band": {"enabled": True, "blocks": "glowstone:50, shroomlight:50", "top_prob": 0.0, "top_blocks": ""},
             "num_bands": 3,
             "bands": [
                 {"dist": 2, "blocks": "blackstone:100", "top_prob": 0.0, "top_blocks": ""},
@@ -168,6 +172,7 @@ def load_deco_presets():
         dirty = True
     if "Deep Dark" not in p:
         p["Deep Dark"] = {
+            "redstone_band": {"enabled": True, "blocks": "sculk_catalyst:100", "top_prob": 0.0, "top_blocks": ""},
             "num_bands": 2,
             "bands": [
                 {"dist": 3, "blocks": "deepslate:80, cobbled_deepslate:20", "top_prob": 0.0, "top_blocks": ""},
@@ -198,7 +203,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         st.session_state.current_deco_config = deco_presets[selected_preset_name]
         # Clear Streamlit state keys to force them to re-initialize with the preset values
         for key in list(st.session_state.keys()):
-            if key.startswith("band_dist_") or key.startswith("band_blocks_") or key.startswith("top_prob_") or key.startswith("top_blocks_") or key == "num_bands":
+            if key.startswith("band_dist_") or key.startswith("band_blocks_") or key.startswith("top_prob_") or key.startswith("top_blocks_") or key.startswith("rs_") or key == "num_bands":
                 del st.session_state[key]
         st.rerun()
 
@@ -213,9 +218,37 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         else:
             st.error("Please enter a name.")
 
-    st.markdown("### Floor Distance Bands")
-
     current_config = st.session_state.current_deco_config
+
+    st.markdown("### Redstone Adjacency Band")
+    rs_config = current_config.get("redstone_band", {"enabled": False, "blocks": "glowstone:100", "top_prob": 0.0, "top_blocks": ""})
+
+    rs_enabled = st.toggle("Enable Redstone Adjacency Decor (1-block radius)", value=rs_config.get("enabled", False), disabled=(processor is None))
+    if rs_enabled:
+        col_rs1, col_rs2 = st.columns(2)
+        with col_rs1:
+            rs_blocks = st.text_input("Floor Blocks (y=-1)", value=rs_config.get("blocks", "glowstone:100"), key="rs_blocks", disabled=(processor is None))
+        with col_rs2:
+            st.write("") # spacing
+
+        col_rs3, col_rs4 = st.columns(2)
+        with col_rs3:
+            rs_top_prob = st.slider("Top Decor Probability", 0.0, 1.0, float(rs_config.get("top_prob", 0.0)), key="rs_top_prob", disabled=(processor is None))
+        with col_rs4:
+            rs_top_blocks = st.text_input("Top Blocks (y=0)", value=rs_config.get("top_blocks", ""), key="rs_top_blocks", disabled=(processor is None))
+    else:
+        rs_blocks = rs_config.get("blocks", "glowstone:100")
+        rs_top_prob = rs_config.get("top_prob", 0.0)
+        rs_top_blocks = rs_config.get("top_blocks", "")
+
+    redstone_band_data = {
+        "enabled": rs_enabled,
+        "blocks": rs_blocks,
+        "top_prob": rs_top_prob,
+        "top_blocks": rs_top_blocks
+    }
+
+    st.markdown("### Floor Distance Bands")
 
     num_bands = st.slider("Number of Distance Bands", 1, 20, current_config.get("num_bands", 2), key="num_bands", disabled=(processor is None))
 
@@ -261,6 +294,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
 
     # Update current config based on UI values
     updated_config = {
+        "redstone_band": redstone_band_data,
         "num_bands": num_bands,
         "bands": bands_data
     }
@@ -302,6 +336,14 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         })
 
     palettes = {
+        "redstone_band": {
+            "enabled": redstone_band_data["enabled"],
+            "blocks": parse_blocks(redstone_band_data["blocks"]),
+            "top_decor": {
+                "probability": redstone_band_data["top_prob"],
+                "blocks": parse_blocks(redstone_band_data["top_blocks"])
+            }
+        },
         "distance_bands": parsed_bands
     }
 
