@@ -164,13 +164,10 @@ class StructureGenerator:
             # Check for redstone adjacency first
             is_redstone_adjacent = False
             if redstone_band and redstone_band.get("enabled", False):
-                # Check within 1-block radius (including diagonals and itself)
-                for dx in [-1, 0, 1]:
-                    for dz in [-1, 0, 1]:
-                        if (x + dx, z + dz) in redstone_positions:
-                            is_redstone_adjacent = True
-                            break
-                    if is_redstone_adjacent:
+                # strictly 1 block orthogonal (no diagonals, not itself)
+                for dx, dz in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    if (x + dx, z + dz) in redstone_positions:
+                        is_redstone_adjacent = True
                         break
 
                 if is_redstone_adjacent:

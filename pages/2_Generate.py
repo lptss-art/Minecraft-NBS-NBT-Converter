@@ -223,7 +223,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
     st.markdown("### Redstone Adjacency Band")
     rs_config = current_config.get("redstone_band", {"enabled": False, "blocks": "glowstone:100", "top_prob": 0.0, "top_blocks": ""})
 
-    rs_enabled = st.toggle("Enable Redstone Adjacency Decor (1-block radius)", value=rs_config.get("enabled", False), key="rs_enabled", disabled=(processor is None))
+    rs_enabled = st.toggle("Enable Redstone Adjacency Decor (Strictly 1 block Orthogonal)", value=rs_config.get("enabled", False), key="rs_enabled", disabled=(processor is None))
     if rs_enabled:
         col_rs1, col_rs2 = st.columns(2)
         with col_rs1:
