@@ -115,22 +115,52 @@ custom_out_name = st.text_input("Output File Name (without .nbt)", value=name.lo
 st.subheader("Decoration Palette")
 palettes = {}
 if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
-    col1, col2, col3 = st.columns(3)
+    st.markdown("### Floor Distance Bands")
 
-    with col1:
-        floor_options = ["stone", "andesite", "cobblestone", "mossy_cobblestone", "oak_planks", "grass_block", "dirt"]
-        selected_floor = st.multiselect("Floor Blocks", floor_options, default=["stone"], disabled=(processor is None))
-    with col2:
-        flower_options = ["poppy", "dandelion", "azure_bluet", "red_tulip", "pink_tulip", "oxeye_daisy", "cornflower", "lily_of_the_valley"]
-        selected_flowers = st.multiselect("Flowers / Ground Decor", flower_options, default=["poppy", "dandelion"], disabled=(processor is None))
-    with col3:
-        ceiling_options = ["lantern", "soul_lantern", "torch", "redstone_lamp", "ochre_froglight"]
-        selected_ceiling = st.multiselect("Lighting / Ceiling", ceiling_options, default=["lantern"], disabled=(processor is None))
+    col_band1, col_band2 = st.columns(2)
+
+    with col_band1:
+        band1_dist = st.slider("Band 1 Max Distance", 1, 20, 3, disabled=(processor is None))
+        band1_blocks = st.text_input("Band 1 Blocks (e.g., stone:80, andesite:20)", value="stone:100", disabled=(processor is None))
+
+    with col_band2:
+        band2_dist = st.slider("Band 2 Max Distance", 1, 50, 10, disabled=(processor is None))
+        band2_blocks = st.text_input("Band 2 Blocks (e.g., grass_block:80, dirt:20)", value="grass_block:100", disabled=(processor is None))
+
+    st.markdown("### Top Decoration (y=0)")
+
+    col_top1, col_top2 = st.columns(2)
+    with col_top1:
+        top_prob = st.slider("Top Decoration Probability", 0.0, 1.0, 0.1, disabled=(processor is None))
+    with col_top2:
+        top_blocks = st.text_input("Top Blocks (e.g., poppy:50, dandelion:50)", value="poppy:50, dandelion:50", disabled=(processor is None))
+
+    def parse_blocks(block_str):
+        if not block_str.strip():
+            return {}
+        result = {}
+        for item in block_str.split(','):
+            parts = item.split(':')
+            if len(parts) == 2:
+                name = parts[0].strip()
+                try:
+                    weight = float(parts[1].strip())
+                    if not name.startswith("minecraft:"):
+                        name = f"minecraft:{name}"
+                    result[name] = weight
+                except ValueError:
+                    pass
+        return result
 
     palettes = {
-        "floor": selected_floor,
-        "flowers": selected_flowers,
-        "ceiling": selected_ceiling
+        "distance_bands": [
+            {"max_distance": band1_dist, "blocks": parse_blocks(band1_blocks)},
+            {"max_distance": band2_dist, "blocks": parse_blocks(band2_blocks)}
+        ],
+        "top_decor": {
+            "probability": top_prob,
+            "blocks": parse_blocks(top_blocks)
+        }
     }
 
 
