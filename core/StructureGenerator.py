@@ -52,52 +52,151 @@ class StructureGenerator:
 
         self.global_data.clean(floor_block_name)
 
-        # Temporary debugging request: disable decorations
-        # self.apply_decoration()
+        self.apply_decoration()
 
     def apply_decoration(self):
-        """Applies floor, ceiling, and random decorations to the generated structure based on palettes."""
+        """Applies distance-based floor and random top decorations to the generated structure."""
         if not self.palettes or not any(self.palettes.values()):
             return
 
         import random
+        from collections import deque
 
         if not self.global_data.blocks:
             return
 
-        xs = [b['pos'][0] for b in self.global_data.blocks]
-        zs = [b['pos'][2] for b in self.global_data.blocks]
+        # Old layout 1 can skip distance based logic or use it, let's allow it but the focus is 2 & 3.
+        # It's generally fine for all, but user requested for layout 2 and 3.
+        if "Layout1" in self.layout_type:
+            # We can still apply it if we want, or fall back to an empty return if not requested.
+            # But the prompt says "on va faire la logique pour les layout 2 et 3".
+            # We'll just apply it universally since the logic relies on coordinates.
+            pass
 
-        min_x = min(xs) - 3
-        max_x = max(xs) + 3
-        min_z = min(zs) - 3
-        max_z = max(zs) + 3
+        # Parse palettes
+        # Expected structure in palettes (updated for the new UI):
+        # palettes = {
+        #    "distance_bands": [
+        #        {"max_distance": 5, "blocks": {"minecraft:stone": 80}, "top_decor": {"blocks": {}, "probability": 0}},
+        #        {"max_distance": 15, "blocks": {"minecraft:grass_block": 100}, "top_decor": {"blocks": {"minecraft:poppy": 100}, "probability": 0.2}}
+        #    ]
+        # }
+
+        distance_bands = self.palettes.get("distance_bands", [])
+        redstone_band = self.palettes.get("redstone_band", None)
+
+        # Fallback to old behavior if distance bands are not defined but old ones are
+        if not distance_bands and self.palettes.get('floor'):
+            # Convert old format to new format
+            blocks = {f"minecraft:{b}": 100/len(self.palettes['floor']) for b in self.palettes['floor']}
+            distance_bands = [{"max_distance": 3, "blocks": blocks, "top_decor": {"blocks": {}, "probability": 0.0}}]
+
+        if not distance_bands:
+            return
+
+        # Max distance to explore
+        max_dist = max([band["max_distance"] for band in distance_bands])
+
+        # Get all base blocks (x, z) and their tick
+        occupied_positions = set()
+        base_blocks = {} # (x, z) -> min_tick
+        redstone_positions = set()
+
+        for block in self.global_data.blocks:
+            x, y, z = block['pos']
+            occupied_positions.add((x, y, z))
+            coord = (x, z)
+            tick = block['metadata'].get('tick', 0)
+            if coord not in base_blocks or tick < base_blocks[coord]:
+                base_blocks[coord] = tick
+
+            if block['block_name'] == "minecraft:redstone_wire":
+                redstone_positions.add(coord)
+
+        # Multi-source BFS for distances
+        # Queue: ((x, z), distance, tick)
+        queue = deque()
+        visited = {} # (x, z) -> (distance, tick)
+
+        for coord, tick in base_blocks.items():
+            queue.append((coord, 0, tick))
+            visited[coord] = (0, tick)
+
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, 1), (1, -1), (-1, -1)]
+
+        while queue:
+            (cx, cz), dist, tick = queue.popleft()
+
+            if dist >= max_dist:
+                continue
+
+            for dx, dz in directions:
+                nx, nz = cx + dx, cz + dz
+                ndist = dist + 1
+
+                if (nx, nz) not in visited or visited[(nx, nz)][0] > ndist:
+                    visited[(nx, nz)] = (ndist, tick)
+                    queue.append(((nx, nz), ndist, tick))
+
+        # We need a function to pick a block from a weight dict
+        def pick_block(block_weights):
+            if not block_weights:
+                return "minecraft:air"
+            total_weight = sum(block_weights.values())
+            if total_weight <= 0:
+                return "minecraft:air"
+            rand_val = random.uniform(0, total_weight)
+            current = 0
+            for b, w in block_weights.items():
+                current += w
+                if rand_val <= current:
+                    return b
+            return list(block_weights.keys())[-1]
+
+        # Sort bands by distance ascending
+        distance_bands.sort(key=lambda x: x["max_distance"])
 
         data_deco = Brick()
 
-        floor_blocks = [f"minecraft:{b}" for b in self.palettes.get('floor', [])]
-        ceiling_blocks = [f"minecraft:{b}" for b in self.palettes.get('ceiling', [])]
-        flowers = [f"minecraft:{b}" for b in self.palettes.get('flowers', [])]
+        for (x, z), (dist, tick) in visited.items():
+            selected_band = None
 
-        def rand_block(blocks, prob_nothing=0.0):
-            if not blocks or random.random() < prob_nothing:
-                return "minecraft:air"
-            return random.choice(blocks)
+            # Check for redstone adjacency first
+            is_redstone_adjacent = False
+            if redstone_band and redstone_band.get("enabled", False):
+                # strictly 1 block orthogonal (no diagonals, not itself)
+                for dx, dz in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    if (x + dx, z + dz) in redstone_positions:
+                        is_redstone_adjacent = True
+                        break
 
-        for i in range(min_x, max_x + 1):
-            for k in range(min_z, max_z + 1):
-                # Floor
-                if floor_blocks:
-                    data_deco.add_block(i, -2, k, rand_block(floor_blocks), random_delay_range=5)
-                    data_deco.add_block(i, -1, k, rand_block(floor_blocks), random_delay_range=5)
+                if is_redstone_adjacent:
+                    selected_band = redstone_band
 
-                # Flowers (sparse)
-                if flowers and random.random() > 0.8:
-                    data_deco.add_block(i, 0, k, rand_block(flowers), needs_down=True)
+            # Find which band this cell belongs to if not overridden by redstone
+            if not selected_band:
+                for band in distance_bands:
+                    if dist <= band["max_distance"]:
+                        selected_band = band
+                        break
 
-                # Ceiling / Lanterns (sparse grid)
-                if ceiling_blocks and (i % 4 == 0 and k % 4 == 0):
-                    data_deco.add_block(i, 4, k, rand_block(ceiling_blocks))
+            if not selected_band:
+                continue
+
+            floor_block = pick_block(selected_band.get("blocks", {}))
+            if floor_block and floor_block != "minecraft:air":
+                # Ensure we don't overwrite any existing block at y = -1
+                if (x, -1, z) not in occupied_positions:
+                    data_deco.add_block(x, -1, z, floor_block, tick=tick)
+
+            # Top decor (y = 0)
+            top_decor = selected_band.get("top_decor", {})
+            if top_decor and "blocks" in top_decor and top_decor.get("probability", 0) > 0:
+                if random.random() < top_decor["probability"]:
+                    top_block = pick_block(top_decor["blocks"])
+                    if top_block and top_block != "minecraft:air":
+                        if (x, 0, z) not in occupied_positions:
+                            data_deco.add_block(x, 0, z, top_block, tick=tick, needs_down=True)
 
         # Merge the generated track into the decoration
         data_deco.add_data(self.global_data)
