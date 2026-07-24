@@ -114,26 +114,170 @@ custom_out_name = st.text_input("Output File Name (without .nbt)", value=name.lo
 
 st.subheader("Decoration Palette")
 palettes = {}
+
+DECO_PRESET_FILE = "decoration_presets.json"
+
+def load_deco_presets():
+    import json
+    p = {}
+    if os.path.exists(DECO_PRESET_FILE):
+        try:
+            with open(DECO_PRESET_FILE, "r") as f:
+                p = json.load(f)
+        except Exception:
+            pass
+
+    dirty = False
+    if "Default" not in p:
+        p["Default"] = {
+            "num_bands": 2,
+            "bands": [
+                {"dist": 3, "blocks": "stone:80, andesite:20"},
+                {"dist": 10, "blocks": "grass_block:100"}
+            ],
+            "top_prob": 0.1,
+            "top_blocks": "poppy:50, dandelion:50"
+        }
+        dirty = True
+    if "Forest" not in p:
+        p["Forest"] = {
+            "num_bands": 3,
+            "bands": [
+                {"dist": 2, "blocks": "moss_block:100"},
+                {"dist": 5, "blocks": "podzol:50, coarse_dirt:50"},
+                {"dist": 12, "blocks": "grass_block:100"}
+            ],
+            "top_prob": 0.2,
+            "top_blocks": "oak_sapling:30, fern:70"
+        }
+        dirty = True
+    if "Desert" not in p:
+        p["Desert"] = {
+            "num_bands": 2,
+            "bands": [
+                {"dist": 4, "blocks": "sandstone:100"},
+                {"dist": 15, "blocks": "sand:90, red_sand:10"}
+            ],
+            "top_prob": 0.05,
+            "top_blocks": "dead_bush:80, cactus:20"
+        }
+        dirty = True
+    if "Nether" not in p:
+        p["Nether"] = {
+            "num_bands": 3,
+            "bands": [
+                {"dist": 2, "blocks": "blackstone:100"},
+                {"dist": 6, "blocks": "magma_block:30, netherrack:70"},
+                {"dist": 15, "blocks": "netherrack:100"}
+            ],
+            "top_prob": 0.15,
+            "top_blocks": "crimson_fungus:50, warped_fungus:50"
+        }
+        dirty = True
+    if "Deep Dark" not in p:
+        p["Deep Dark"] = {
+            "num_bands": 2,
+            "bands": [
+                {"dist": 3, "blocks": "deepslate:80, cobbled_deepslate:20"},
+                {"dist": 12, "blocks": "sculk:100"}
+            ],
+            "top_prob": 0.2,
+            "top_blocks": "sculk_vein:80, sculk_sensor:20"
+        }
+        dirty = True
+
+    if dirty:
+        with open(DECO_PRESET_FILE, "w") as f:
+            json.dump(p, f, indent=4)
+    return p
+
+def save_deco_presets(p):
+    import json
+    with open(DECO_PRESET_FILE, "w") as f:
+        json.dump(p, f, indent=4)
+
 if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
+    deco_presets = load_deco_presets()
+
+    col_p1, col_p2, col_p3, col_p4 = st.columns([2, 1, 2, 1])
+    preset_names = list(deco_presets.keys())
+    default_idx = preset_names.index("Default") if "Default" in preset_names else 0
+    selected_preset_name = col_p1.selectbox("Load Decoration Preset", preset_names, index=default_idx, label_visibility="collapsed", disabled=(processor is None))
+
+    if col_p2.button("Load", key="load_deco", use_container_width=True, disabled=(processor is None)):
+        st.session_state.current_deco_config = deco_presets[selected_preset_name]
+        # Clear Streamlit state keys to force them to re-initialize with the preset values
+        for key in list(st.session_state.keys()):
+            if key.startswith("band_dist_") or key.startswith("band_blocks_") or key == "num_bands":
+                del st.session_state[key]
+        st.rerun()
+
+    if 'current_deco_config' not in st.session_state:
+        st.session_state.current_deco_config = deco_presets["Default"]
+
+    new_preset_name = col_p3.text_input("Save as Preset Name", placeholder="MyPreset", label_visibility="collapsed", key="save_deco_name", disabled=(processor is None))
+    if col_p4.button("Save", key="save_deco", use_container_width=True, disabled=(processor is None)):
+        if new_preset_name.strip():
+            # We will populate the config object right before saving below
+            st.session_state.pending_deco_save = new_preset_name.strip()
+        else:
+            st.error("Please enter a name.")
+
     st.markdown("### Floor Distance Bands")
 
-    col_band1, col_band2 = st.columns(2)
+    current_config = st.session_state.current_deco_config
 
-    with col_band1:
-        band1_dist = st.slider("Band 1 Max Distance", 1, 20, 3, disabled=(processor is None))
-        band1_blocks = st.text_input("Band 1 Blocks (e.g., stone:80, andesite:20)", value="stone:100", disabled=(processor is None))
+    num_bands = st.slider("Number of Distance Bands", 1, 5, current_config.get("num_bands", 2), key="num_bands", disabled=(processor is None))
 
-    with col_band2:
-        band2_dist = st.slider("Band 2 Max Distance", 1, 50, 10, disabled=(processor is None))
-        band2_blocks = st.text_input("Band 2 Blocks (e.g., grass_block:80, dirt:20)", value="grass_block:100", disabled=(processor is None))
+    bands_data = []
+    min_dist = 1
+
+    for i in range(num_bands):
+        col_dist, col_blocks = st.columns(2)
+
+        # Load defaults from config if available, else fallback
+        default_dist = current_config["bands"][i]["dist"] if i < len(current_config.get("bands", [])) else min_dist + 5
+        default_blocks = current_config["bands"][i]["blocks"] if i < len(current_config.get("bands", [])) else "stone:100"
+
+        # Ensure default_dist is strictly greater than min_dist to prevent errors
+        if default_dist < min_dist:
+            default_dist = min_dist
+
+        with col_dist:
+            # Fix Streamlit out-of-bounds error by ensuring max_value scales with min_dist
+            max_val = max(100, min_dist + 20)
+            band_dist = st.slider(f"Band {i+1} Max Distance", min_dist, max_val, default_dist, key=f"band_dist_{i}", disabled=(processor is None))
+        with col_blocks:
+            band_blocks = st.text_input(f"Band {i+1} Blocks", value=default_blocks, key=f"band_blocks_{i}", disabled=(processor is None))
+
+        bands_data.append({"dist": band_dist, "blocks": band_blocks})
+
+        # The next band must start at least 1 block further
+        min_dist = band_dist + 1
 
     st.markdown("### Top Decoration (y=0)")
 
     col_top1, col_top2 = st.columns(2)
     with col_top1:
-        top_prob = st.slider("Top Decoration Probability", 0.0, 1.0, 0.1, disabled=(processor is None))
+        top_prob = st.slider("Top Decoration Probability", 0.0, 1.0, current_config.get("top_prob", 0.1), disabled=(processor is None))
     with col_top2:
-        top_blocks = st.text_input("Top Blocks (e.g., poppy:50, dandelion:50)", value="poppy:50, dandelion:50", disabled=(processor is None))
+        top_blocks = st.text_input("Top Blocks", value=current_config.get("top_blocks", "poppy:50, dandelion:50"), disabled=(processor is None))
+
+    # Update current config based on UI values
+    updated_config = {
+        "num_bands": num_bands,
+        "bands": bands_data,
+        "top_prob": top_prob,
+        "top_blocks": top_blocks
+    }
+    st.session_state.current_deco_config = updated_config
+
+    if st.session_state.get("pending_deco_save"):
+        preset_name = st.session_state.pending_deco_save
+        deco_presets[preset_name] = updated_config
+        save_deco_presets(deco_presets)
+        st.success(f"Saved preset {preset_name}")
+        st.session_state.pending_deco_save = None
 
     def parse_blocks(block_str):
         if not block_str.strip():
@@ -152,11 +296,15 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
                     pass
         return result
 
+    parsed_bands = []
+    for bd in bands_data:
+        parsed_bands.append({
+            "max_distance": bd["dist"],
+            "blocks": parse_blocks(bd["blocks"])
+        })
+
     palettes = {
-        "distance_bands": [
-            {"max_distance": band1_dist, "blocks": parse_blocks(band1_blocks)},
-            {"max_distance": band2_dist, "blocks": parse_blocks(band2_blocks)}
-        ],
+        "distance_bands": parsed_bands,
         "top_decor": {
             "probability": top_prob,
             "blocks": parse_blocks(top_blocks)
