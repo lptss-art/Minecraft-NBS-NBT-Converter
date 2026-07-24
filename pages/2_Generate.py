@@ -132,57 +132,47 @@ def load_deco_presets():
         p["Default"] = {
             "num_bands": 2,
             "bands": [
-                {"dist": 3, "blocks": "stone:80, andesite:20"},
-                {"dist": 10, "blocks": "grass_block:100"}
-            ],
-            "top_prob": 0.1,
-            "top_blocks": "poppy:50, dandelion:50"
+                {"dist": 3, "blocks": "stone:80, andesite:20", "top_prob": 0.0, "top_blocks": ""},
+                {"dist": 10, "blocks": "grass_block:100", "top_prob": 0.1, "top_blocks": "poppy:50, dandelion:50"}
+            ]
         }
         dirty = True
     if "Forest" not in p:
         p["Forest"] = {
             "num_bands": 3,
             "bands": [
-                {"dist": 2, "blocks": "moss_block:100"},
-                {"dist": 5, "blocks": "podzol:50, coarse_dirt:50"},
-                {"dist": 12, "blocks": "grass_block:100"}
-            ],
-            "top_prob": 0.2,
-            "top_blocks": "oak_sapling:30, fern:70"
+                {"dist": 2, "blocks": "moss_block:100", "top_prob": 0.0, "top_blocks": ""},
+                {"dist": 5, "blocks": "podzol:50, coarse_dirt:50", "top_prob": 0.05, "top_blocks": "brown_mushroom:50, red_mushroom:50"},
+                {"dist": 12, "blocks": "grass_block:100", "top_prob": 0.2, "top_blocks": "oak_sapling:30, fern:70"}
+            ]
         }
         dirty = True
     if "Desert" not in p:
         p["Desert"] = {
             "num_bands": 2,
             "bands": [
-                {"dist": 4, "blocks": "sandstone:100"},
-                {"dist": 15, "blocks": "sand:90, red_sand:10"}
-            ],
-            "top_prob": 0.05,
-            "top_blocks": "dead_bush:80, cactus:20"
+                {"dist": 4, "blocks": "sandstone:100", "top_prob": 0.0, "top_blocks": ""},
+                {"dist": 15, "blocks": "sand:90, red_sand:10", "top_prob": 0.05, "top_blocks": "dead_bush:80, cactus:20"}
+            ]
         }
         dirty = True
     if "Nether" not in p:
         p["Nether"] = {
             "num_bands": 3,
             "bands": [
-                {"dist": 2, "blocks": "blackstone:100"},
-                {"dist": 6, "blocks": "magma_block:30, netherrack:70"},
-                {"dist": 15, "blocks": "netherrack:100"}
-            ],
-            "top_prob": 0.15,
-            "top_blocks": "crimson_fungus:50, warped_fungus:50"
+                {"dist": 2, "blocks": "blackstone:100", "top_prob": 0.0, "top_blocks": ""},
+                {"dist": 6, "blocks": "magma_block:30, netherrack:70", "top_prob": 0.05, "top_blocks": "fire:100"},
+                {"dist": 15, "blocks": "netherrack:100", "top_prob": 0.15, "top_blocks": "crimson_fungus:50, warped_fungus:50"}
+            ]
         }
         dirty = True
     if "Deep Dark" not in p:
         p["Deep Dark"] = {
             "num_bands": 2,
             "bands": [
-                {"dist": 3, "blocks": "deepslate:80, cobbled_deepslate:20"},
-                {"dist": 12, "blocks": "sculk:100"}
-            ],
-            "top_prob": 0.2,
-            "top_blocks": "sculk_vein:80, sculk_sensor:20"
+                {"dist": 3, "blocks": "deepslate:80, cobbled_deepslate:20", "top_prob": 0.0, "top_blocks": ""},
+                {"dist": 12, "blocks": "sculk:100", "top_prob": 0.2, "top_blocks": "sculk_vein:80, sculk_sensor:20"}
+            ]
         }
         dirty = True
 
@@ -208,7 +198,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         st.session_state.current_deco_config = deco_presets[selected_preset_name]
         # Clear Streamlit state keys to force them to re-initialize with the preset values
         for key in list(st.session_state.keys()):
-            if key.startswith("band_dist_") or key.startswith("band_blocks_") or key == "num_bands":
+            if key.startswith("band_dist_") or key.startswith("band_blocks_") or key.startswith("top_prob_") or key.startswith("top_blocks_") or key == "num_bands":
                 del st.session_state[key]
         st.rerun()
 
@@ -227,17 +217,20 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
 
     current_config = st.session_state.current_deco_config
 
-    num_bands = st.slider("Number of Distance Bands", 1, 5, current_config.get("num_bands", 2), key="num_bands", disabled=(processor is None))
+    num_bands = st.slider("Number of Distance Bands", 1, 20, current_config.get("num_bands", 2), key="num_bands", disabled=(processor is None))
 
     bands_data = []
     min_dist = 1
 
     for i in range(num_bands):
+        st.markdown(f"**Band {i+1}**")
         col_dist, col_blocks = st.columns(2)
 
         # Load defaults from config if available, else fallback
         default_dist = current_config["bands"][i]["dist"] if i < len(current_config.get("bands", [])) else min_dist + 5
         default_blocks = current_config["bands"][i]["blocks"] if i < len(current_config.get("bands", [])) else "stone:100"
+        default_top_prob = current_config["bands"][i].get("top_prob", 0.0) if i < len(current_config.get("bands", [])) else 0.0
+        default_top_blocks = current_config["bands"][i].get("top_blocks", "") if i < len(current_config.get("bands", [])) else ""
 
         # Ensure default_dist is strictly greater than min_dist to prevent errors
         if default_dist < min_dist:
@@ -246,29 +239,30 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         with col_dist:
             # Fix Streamlit out-of-bounds error by ensuring max_value scales with min_dist
             max_val = max(100, min_dist + 20)
-            band_dist = st.slider(f"Band {i+1} Max Distance", min_dist, max_val, default_dist, key=f"band_dist_{i}", disabled=(processor is None))
+            band_dist = st.slider(f"Max Distance", min_dist, max_val, default_dist, key=f"band_dist_{i}", disabled=(processor is None))
         with col_blocks:
-            band_blocks = st.text_input(f"Band {i+1} Blocks", value=default_blocks, key=f"band_blocks_{i}", disabled=(processor is None))
+            band_blocks = st.text_input(f"Floor Blocks (y=-1)", value=default_blocks, key=f"band_blocks_{i}", disabled=(processor is None))
 
-        bands_data.append({"dist": band_dist, "blocks": band_blocks})
+        col_top1, col_top2 = st.columns(2)
+        with col_top1:
+            top_prob = st.slider(f"Top Decor Probability", 0.0, 1.0, float(default_top_prob), key=f"top_prob_{i}", disabled=(processor is None))
+        with col_top2:
+            top_blocks = st.text_input(f"Top Blocks (y=0)", value=default_top_blocks, key=f"top_blocks_{i}", disabled=(processor is None))
+
+        bands_data.append({
+            "dist": band_dist,
+            "blocks": band_blocks,
+            "top_prob": top_prob,
+            "top_blocks": top_blocks
+        })
 
         # The next band must start at least 1 block further
         min_dist = band_dist + 1
 
-    st.markdown("### Top Decoration (y=0)")
-
-    col_top1, col_top2 = st.columns(2)
-    with col_top1:
-        top_prob = st.slider("Top Decoration Probability", 0.0, 1.0, current_config.get("top_prob", 0.1), disabled=(processor is None))
-    with col_top2:
-        top_blocks = st.text_input("Top Blocks", value=current_config.get("top_blocks", "poppy:50, dandelion:50"), disabled=(processor is None))
-
     # Update current config based on UI values
     updated_config = {
         "num_bands": num_bands,
-        "bands": bands_data,
-        "top_prob": top_prob,
-        "top_blocks": top_blocks
+        "bands": bands_data
     }
     st.session_state.current_deco_config = updated_config
 
@@ -284,7 +278,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
             return {}
         result = {}
         for item in block_str.split(','):
-            parts = item.split(':')
+            parts = item.rsplit(':', 1)
             if len(parts) == 2:
                 name = parts[0].strip()
                 try:
@@ -300,15 +294,15 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
     for bd in bands_data:
         parsed_bands.append({
             "max_distance": bd["dist"],
-            "blocks": parse_blocks(bd["blocks"])
+            "blocks": parse_blocks(bd["blocks"]),
+            "top_decor": {
+                "probability": bd["top_prob"],
+                "blocks": parse_blocks(bd["top_blocks"])
+            }
         })
 
     palettes = {
-        "distance_bands": parsed_bands,
-        "top_decor": {
-            "probability": top_prob,
-            "blocks": parse_blocks(top_blocks)
-        }
+        "distance_bands": parsed_bands
     }
 
 

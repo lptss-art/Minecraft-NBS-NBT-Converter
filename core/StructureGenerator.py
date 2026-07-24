@@ -77,21 +77,18 @@ class StructureGenerator:
         # Expected structure in palettes (updated for the new UI):
         # palettes = {
         #    "distance_bands": [
-        #        {"max_distance": 5, "blocks": {"minecraft:stone": 80, "minecraft:andesite": 20}},
-        #        {"max_distance": 15, "blocks": {"minecraft:grass_block": 100}}
-        #    ],
-        #    "top_decor": {"blocks": {"minecraft:poppy": 50, "minecraft:dandelion": 50}, "probability": 0.2},
-        #    "ceiling": ["lantern"] # kept for backwards compatibility if needed, though we might just drop it.
+        #        {"max_distance": 5, "blocks": {"minecraft:stone": 80}, "top_decor": {"blocks": {}, "probability": 0}},
+        #        {"max_distance": 15, "blocks": {"minecraft:grass_block": 100}, "top_decor": {"blocks": {"minecraft:poppy": 100}, "probability": 0.2}}
+        #    ]
         # }
 
         distance_bands = self.palettes.get("distance_bands", [])
-        top_decor = self.palettes.get("top_decor", {})
 
         # Fallback to old behavior if distance bands are not defined but old ones are
         if not distance_bands and self.palettes.get('floor'):
             # Convert old format to new format
             blocks = {f"minecraft:{b}": 100/len(self.palettes['floor']) for b in self.palettes['floor']}
-            distance_bands = [{"max_distance": 3, "blocks": blocks}]
+            distance_bands = [{"max_distance": 3, "blocks": blocks, "top_decor": {"blocks": {}, "probability": 0.0}}]
 
         if not distance_bands:
             return
@@ -174,6 +171,7 @@ class StructureGenerator:
                     data_deco.add_block(x, -1, z, floor_block, tick=tick)
 
             # Top decor (y = 0)
+            top_decor = selected_band.get("top_decor", {})
             if top_decor and "blocks" in top_decor and top_decor.get("probability", 0) > 0:
                 if random.random() < top_decor["probability"]:
                     top_block = pick_block(top_decor["blocks"])
