@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import shutil
+import re
 from core.MusicData import MusicData, prep_data
 from core.StructureGenerator import StructureGenerator
 from core.config import get_export_dir, update_export_dir
@@ -110,7 +111,20 @@ elif layout_type == "Layout 3":
 
 st.subheader("Export Configuration")
 export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
-custom_out_name = st.text_input("Output File Name (without .nbt)", value=name.lower() if name else "structure_output", disabled=(processor is None))
+
+def clean_filename(filename):
+    if not filename:
+        return ""
+    # Lowercase, replace spaces with underscores, and remove any character that isn't a-z, 0-9, -, or _
+    cleaned = filename.lower().replace(" ", "_")
+    cleaned = re.sub(r'[^a-z0-9\-_]', '', cleaned)
+    return cleaned
+
+default_out_name = clean_filename(name) if name else "structure_output"
+if not default_out_name:
+    default_out_name = "structure_output"
+
+custom_out_name = st.text_input("Output File Name (without .nbt)", value=default_out_name, disabled=(processor is None))
 
 st.subheader("Decoration Palette")
 palettes = {}
