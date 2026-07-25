@@ -153,6 +153,20 @@ class StructureGenerator:
                     return b
             return list(block_weights.keys())[-1]
 
+        def parse_block_and_props(block_str):
+            if "[" in block_str and block_str.endswith("]"):
+                parts = block_str.split("[", 1)
+                b_name = parts[0]
+                props_str = parts[1][:-1]
+                props = {}
+                if props_str:
+                    for kv in props_str.split(","):
+                        if "=" in kv:
+                            k, v = kv.split("=", 1)
+                            props[k.strip()] = v.strip()
+                return b_name, props
+            return block_str, {}
+
         # Sort bands by distance ascending
         distance_bands.sort(key=lambda x: x["max_distance"])
 
@@ -183,20 +197,22 @@ class StructureGenerator:
             if not selected_band:
                 continue
 
-            floor_block = pick_block(selected_band.get("blocks", {}))
-            if floor_block and floor_block != "minecraft:air":
+            floor_block_str = pick_block(selected_band.get("blocks", {}))
+            if floor_block_str and floor_block_str != "minecraft:air":
                 # Ensure we don't overwrite any existing block at y = -1
                 if (x, -1, z) not in occupied_positions:
-                    data_deco.add_block(x, -1, z, floor_block, tick=tick)
+                    floor_name, floor_props = parse_block_and_props(floor_block_str)
+                    data_deco.add_block(x, -1, z, floor_name, properties=floor_props, tick=tick)
 
             # Top decor (y = 0)
             top_decor = selected_band.get("top_decor", {})
             if top_decor and "blocks" in top_decor and top_decor.get("probability", 0) > 0:
                 if random.random() < top_decor["probability"]:
-                    top_block = pick_block(top_decor["blocks"])
-                    if top_block and top_block != "minecraft:air":
+                    top_block_str = pick_block(top_decor["blocks"])
+                    if top_block_str and top_block_str != "minecraft:air":
                         if (x, 0, z) not in occupied_positions:
-                            data_deco.add_block(x, 0, z, top_block, tick=tick, needs_down=True)
+                            top_name, top_props = parse_block_and_props(top_block_str)
+                            data_deco.add_block(x, 0, z, top_name, properties=top_props, tick=tick, needs_down=True)
 
         # Merge the generated track into the decoration
         data_deco.add_data(self.global_data)
