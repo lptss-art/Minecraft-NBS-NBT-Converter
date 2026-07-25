@@ -344,7 +344,11 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         if not block_str.strip():
             return {}
         result = {}
-        for item in block_str.split(','):
+
+        # Split on commas, EXCEPT if they are inside brackets [...]
+        items = re.split(r',\s*(?![^\[]*\])', block_str)
+
+        for item in items:
             parts = item.rsplit(':', 1)
             if len(parts) == 2:
                 name = parts[0].strip()
