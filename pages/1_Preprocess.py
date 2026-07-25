@@ -16,14 +16,22 @@ if uploaded_file is not None:
     temp_path = os.path.join("temp", uploaded_file.name)
     with open(temp_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-    st.success(f"File {uploaded_file.name} loaded successfully!")
+
     processor = MusicData()
-    if uploaded_file.name.lower().endswith('.nbs'):
-        name = processor.read_file(temp_path)
-    else:
-        name = processor.load_midi(temp_path)
-    st.session_state.current_processor = processor
-    st.session_state.current_name = name
+    try:
+        if uploaded_file.name.lower().endswith('.nbs'):
+            name = processor.read_file(temp_path)
+        else:
+            name = processor.load_midi(temp_path)
+
+        st.success(f"File {uploaded_file.name} loaded successfully!")
+        st.session_state.current_processor = processor
+        st.session_state.current_name = name
+    except ImportError as e:
+        if "mido" in str(e):
+            st.error("The 'mido' library is required to read MIDI files. Please install it by running `pip install mido`.")
+        else:
+            st.error(f"An import error occurred: {e}")
 
 processor = st.session_state.get('current_processor', None)
 name = st.session_state.get('current_name', "")
