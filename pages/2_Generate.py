@@ -200,11 +200,30 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
     selected_preset_name = col_p1.selectbox("Load Decoration Preset", preset_names, index=default_idx, label_visibility="collapsed", disabled=(processor is None))
 
     if col_p2.button("Load", key="load_deco", use_container_width=True, disabled=(processor is None)):
-        st.session_state.current_deco_config = deco_presets[selected_preset_name]
-        # Clear Streamlit state keys to force them to re-initialize with the preset values
-        for key in list(st.session_state.keys()):
-            if key.startswith("band_dist_") or key.startswith("band_blocks_") or key.startswith("top_prob_") or key.startswith("top_blocks_") or key.startswith("rs_") or key == "num_bands":
-                del st.session_state[key]
+        preset = deco_presets[selected_preset_name]
+        st.session_state.current_deco_config = preset
+
+        # Explicitly inject preset values into session_state to force widgets to update
+        st.session_state["num_bands"] = preset.get("num_bands", 2)
+
+        rs_conf = preset.get("redstone_band", {})
+        st.session_state["rs_enabled"] = rs_conf.get("enabled", False)
+        st.session_state["rs_blocks"] = rs_conf.get("blocks", "glowstone:100")
+        st.session_state["rs_top_prob"] = float(rs_conf.get("top_prob", 0.0))
+        st.session_state["rs_top_blocks"] = rs_conf.get("top_blocks", "")
+
+        min_dist_track = 1
+        for i in range(preset.get("num_bands", 2)):
+            band = preset["bands"][i] if i < len(preset.get("bands", [])) else {}
+            dist_val = band.get("dist", min_dist_track + 5)
+            if dist_val < min_dist_track:
+                dist_val = min_dist_track
+            st.session_state[f"band_dist_{i}"] = dist_val
+            st.session_state[f"band_blocks_{i}"] = band.get("blocks", "stone:100")
+            st.session_state[f"top_prob_{i}"] = float(band.get("top_prob", 0.0))
+            st.session_state[f"top_blocks_{i}"] = band.get("top_blocks", "")
+            min_dist_track = dist_val + 1
+
         st.rerun()
 
     if 'current_deco_config' not in st.session_state:
