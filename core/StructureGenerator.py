@@ -201,9 +201,9 @@ class StructureGenerator:
             floor_block_str = pick_block(selected_band.get("blocks", {}))
             if floor_block_str and floor_block_str != "minecraft:air":
                 # Ensure we don't overwrite any existing block at the target floor layer
-                if (x, -1 + y_offset, z) not in occupied_positions:
+                if (x, -1 - y_offset, z) not in occupied_positions:
                     floor_name, floor_props = parse_block_and_props(floor_block_str)
-                    data_deco.add_block(x, -1 + y_offset, z, floor_name, properties=floor_props, tick=tick)
+                    data_deco.add_block(x, -1 - y_offset, z, floor_name, properties=floor_props, tick=tick)
 
             # Top decor (y = 0)
             top_decor = selected_band.get("top_decor", {})
@@ -211,9 +211,9 @@ class StructureGenerator:
                 if random.random() < top_decor["probability"]:
                     top_block_str = pick_block(top_decor["blocks"])
                     if top_block_str and top_block_str != "minecraft:air":
-                        if (x, 0 + y_offset, z) not in occupied_positions:
+                        if (x, 0 - y_offset, z) not in occupied_positions:
                             top_name, top_props = parse_block_and_props(top_block_str)
-                            data_deco.add_block(x, 0 + y_offset, z, top_name, properties=top_props, tick=tick, needs_down=True)
+                            data_deco.add_block(x, 0 - y_offset, z, top_name, properties=top_props, tick=tick, needs_down=True)
 
         # Merge the generated track into the decoration
         data_deco.add_data(self.global_data)
