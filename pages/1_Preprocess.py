@@ -29,7 +29,11 @@ if uploaded_file is not None:
         st.session_state.current_name = name
     except ImportError as e:
         if "mido" in str(e):
-            st.error("The 'mido' library is required to read MIDI files. Please install it by running `pip install mido`.")
+            import sys
+            st.error(f"The 'mido' library is required to read MIDI files.\n\n"
+                     f"If you have already installed it but still see this error, it may be installed in a different Python environment. "
+                     f"Try installing it specifically for this environment by running:\n\n"
+                     f"`{sys.executable} -m pip install mido`")
         else:
             st.error(f"An import error occurred: {e}")
 
