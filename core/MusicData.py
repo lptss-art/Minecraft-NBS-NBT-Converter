@@ -274,7 +274,7 @@ class MusicData:
 
             for instrument_index in range(13):
                 note = self.data.iloc[i].copy()
-                octave = max(-3, min(note['octave'], 4))
+                octave = int(max(-3, min(note['octave'], 4)))
 
                 if modifier_matrix[octave+3, instrument_index]:
                     instrument_name = list(octave_instruments.keys())[instrument_index]
