@@ -127,6 +127,32 @@ if not default_out_name:
 custom_out_name = st.text_input("Output File Name (without .nbt)", value=default_out_name, disabled=(processor is None))
 
 st.subheader("Decoration Palette")
+
+with st.expander("ℹ️ Comment formater les blocs de décoration ?"):
+    st.markdown("""
+Le format attendu pour les blocs de décoration permet de configurer 3 choses en même temps : **le nom du bloc**, **ses propriétés** (états de bloc comme l'orientation, s'il est allumé, l'âge, etc.), et **son poids** pour les probabilités d'apparition.
+
+### Format général :
+`minecraft:nom_du_bloc[propriete=valeur,autre=valeur]:poids`
+
+### Exemples d'utilisation :
+
+**1. Un bloc simple avec un poids de 80 :**
+> `stone:80`
+*(Le "minecraft:" est ajouté automatiquement s'il manque, et s'il n'y a pas de crochets, aucune propriété n'est définie)*
+
+**2. Un bloc avec des propriétés (ex: un escalier orienté vers l'Est) :**
+> `oak_stairs[facing=east]:50`
+
+**3. Un bloc avec plusieurs propriétés (ex: un feu de camp éteint et face au Nord) :**
+> `campfire[lit=false,facing=north]:100`
+
+**4. Un mélange de plusieurs blocs avec et sans propriétés :**
+> `stone:50, oak_leaves[distance=7,persistent=true]:30, dirt:20`
+
+**Remarque :** Assure-toi de ne pas mettre d'espaces à l'intérieur des crochets `[...]` autour du `=` pour éviter des soucis avec la génération Minecraft.
+    """)
+
 palettes = {}
 
 DECO_PRESET_FILE = "decoration_presets.json"
