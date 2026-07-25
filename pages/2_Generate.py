@@ -280,6 +280,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         st.session_state.current_deco_config = preset
 
         # Explicitly inject preset values into session_state to force widgets to update
+        st.session_state["deco_y_offset"] = preset.get("y_offset", 0)
         st.session_state["num_bands"] = preset.get("num_bands", 2)
 
         rs_conf = preset.get("redstone_band", {})
@@ -314,6 +315,9 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
             st.error("Please enter a name.")
 
     current_config = st.session_state.current_deco_config
+
+    st.markdown("### General Settings")
+    deco_y_offset = st.radio("Y-Offset (Relative to Noteblocks)", options=[0, 1], index=current_config.get("y_offset", 0), horizontal=True, key="deco_y_offset", disabled=(processor is None))
 
     st.markdown("### Redstone Adjacency Band")
     rs_config = current_config.get("redstone_band", {"enabled": False, "blocks": "glowstone:100", "top_prob": 0.0, "top_blocks": ""})
@@ -389,6 +393,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
 
     # Update current config based on UI values
     updated_config = {
+        "y_offset": deco_y_offset,
         "redstone_band": redstone_band_data,
         "num_bands": num_bands,
         "bands": bands_data
@@ -435,6 +440,7 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
         })
 
     palettes = {
+        "y_offset": deco_y_offset,
         "redstone_band": {
             "enabled": redstone_band_data["enabled"],
             "blocks": parse_blocks(redstone_band_data["blocks"]),
