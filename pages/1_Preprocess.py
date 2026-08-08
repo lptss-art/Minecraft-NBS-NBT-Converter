@@ -8,7 +8,7 @@ st.header("Pre-process NBS")
 
 col_up, col_stats = st.columns(2)
 with col_up:
-    uploaded_file = st.file_uploader("Upload NBS file", type=["nbs"], key="nbs_upload_1")
+    uploaded_file = st.file_uploader("Upload NBS or MIDI file", type=["nbs", "mid", "midi"], key="nbs_upload_1")
 
 if uploaded_file is not None:
     if not os.path.exists("temp"):
@@ -16,11 +16,26 @@ if uploaded_file is not None:
     temp_path = os.path.join("temp", uploaded_file.name)
     with open(temp_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
-    st.success(f"File {uploaded_file.name} loaded successfully!")
+
     processor = MusicData()
-    name = processor.read_file(temp_path)
-    st.session_state.current_processor = processor
-    st.session_state.current_name = name
+    try:
+        if uploaded_file.name.lower().endswith('.nbs'):
+            name = processor.read_file(temp_path)
+        else:
+            name = processor.load_midi(temp_path)
+
+        st.success(f"File {uploaded_file.name} loaded successfully!")
+        st.session_state.current_processor = processor
+        st.session_state.current_name = name
+    except ImportError as e:
+        if "mido" in str(e):
+            import sys
+            st.error(f"The 'mido' library is required to read MIDI files.\n\n"
+                     f"If you have already installed it but still see this error, it may be installed in a different Python environment. "
+                     f"Try installing it specifically for this environment by running:\n\n"
+                     f"`{sys.executable} -m pip install mido`")
+        else:
+            st.error(f"An import error occurred: {e}")
 
 processor = st.session_state.get('current_processor', None)
 name = st.session_state.get('current_name', "")

@@ -21,11 +21,12 @@ You will need Python installed along with the following libraries:
 *   `numpy`
 *   `nbt`
 *   `streamlit` (for the GUI)
+*   `mido[ports-rtmidi]` (for reading MIDI files)
 
 Install dependencies via pip:
 
 ```bash
-pip install pandas numpy nbt streamlit
+pip install pandas numpy nbt streamlit mido[ports-rtmidi]
 ```
 
 ## Usage

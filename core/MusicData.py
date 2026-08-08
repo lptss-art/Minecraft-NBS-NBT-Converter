@@ -164,6 +164,21 @@ class MusicData:
         self.adjust_layers()
         
         return self.file_name
+
+    def load_midi(self, file_in):
+        """Reads a MIDI file and converts it to NBS format."""
+        from core.MidiConverter import convert_midi_to_nbs_df
+
+        self.header, self.data, self.fin = convert_midi_to_nbs_df(file_in)
+        self.file_loaded = True
+
+        self.directory = os.path.dirname(file_in)
+        self.file_name = os.path.splitext(os.path.basename(file_in))[0]
+
+        self.process_initial_data()
+        self.adjust_layers()
+
+        return self.file_name
         
     def get_tempo(self):
         """Returns the tempo in ticks per second."""
@@ -259,7 +274,7 @@ class MusicData:
 
             for instrument_index in range(13):
                 note = self.data.iloc[i].copy()
-                octave = max(-3, min(note['octave'], 4))
+                octave = int(max(-3, min(note['octave'], 4)))
 
                 if modifier_matrix[octave+3, instrument_index]:
                     instrument_name = list(octave_instruments.keys())[instrument_index]
