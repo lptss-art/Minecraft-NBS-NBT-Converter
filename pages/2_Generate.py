@@ -111,6 +111,8 @@ elif layout_type == "Layout 3":
     layout_params["l3_prob"] = col_l4.number_input("Redstone Wire Probability", value=0.3, step=0.05)
 
 st.subheader("Export Configuration")
+save_log = st.toggle("Save complete generation log to file", value=False, disabled=(processor is None))
+
 export_dir_input = st.text_input("Export Directory Path", value=get_export_dir(), help="Ex: C:/Users/Name/AppData/Roaming/.minecraft/saves/MyWorld/generated/minecraft/structures")
 
 def clean_filename(filename):
@@ -274,6 +276,9 @@ if generate_pressed:
             generator = StructureGenerator(df_prep, layout_type=full_layout, palettes=palettes, force_positive_coords=force_positive, layout_params=layout_params)
 
             progress_callback = None
+            full_log = []
+            stats = {"failed_notes": 0, "first_failed": None}
+
             if "Layout3" in full_layout:
                 st.write("Layout 3 Generation Progress:")
                 log_container = st.empty()
@@ -283,15 +288,27 @@ if generate_pressed:
                     st.session_state.log_lines.clear()
 
                 def pc(msg, end="\n"):
-                    # Handle terminal carriage return simulation
+                    # UI Log Handling
                     if end == "\r" and len(st.session_state.log_lines) > 0:
                         st.session_state.log_lines[-1] = msg
                     else:
                         st.session_state.log_lines.append(msg)
-                    # Keep only the last 15 lines to avoid UI lag
+
                     if len(st.session_state.log_lines) > 15:
                         st.session_state.log_lines = st.session_state.log_lines[-15:]
                     log_container.code("\n".join(st.session_state.log_lines), language="bash")
+
+                    # Full Log Handling & Stats
+                    if save_log:
+                        if end == "\r" and len(full_log) > 0:
+                            full_log[-1] = msg
+                        else:
+                            full_log.append(msg)
+
+                        if "Échec critique" in msg:
+                            stats["failed_notes"] += 1
+                            if stats["first_failed"] is None:
+                                stats["first_failed"] = msg
 
                 progress_callback = pc
 
@@ -303,13 +320,10 @@ if generate_pressed:
 
             if export_mode == "Single Monolithic File":
                 out_path = os.path.join(export_dir, f"{out_name}.nbt")
-                # Generator handles CustomNBT logic in export_monolithic now
                 generator.export_monolithic(out_path)
                 st.session_state.generated_nbt_path = out_path
                 st.session_state.generated_nbt_name = f"{out_name}.nbt"
                 st.session_state.generated_nbt_mime = "application/octet-stream"
-                progress_bar.progress(100)
-                status_text.text("Finished!")
             else:
                 out_dir = os.path.join(export_dir, f"{out_name}_parts")
                 if os.path.exists(out_dir):
@@ -317,7 +331,6 @@ if generate_pressed:
                 os.makedirs(out_dir, exist_ok=True)
                 generator.export_multipart(out_dir, prefix=out_name)
 
-                # Zip the directory
                 zip_path = os.path.join(export_dir, f"{out_name}_parts.zip")
                 shutil.make_archive(zip_path.replace('.zip', ''), 'zip', out_dir)
 
@@ -325,8 +338,23 @@ if generate_pressed:
                 st.session_state.generated_nbt_name = f"{out_name}_parts.zip"
                 st.session_state.generated_nbt_mime = "application/zip"
 
-                progress_bar.progress(100)
-                status_text.text("Finished!")
+            if save_log and "Layout3" in full_layout:
+                log_path = os.path.join(export_dir, f"{out_name}_log.txt")
+                with open(log_path, 'w', encoding='utf-8') as f:
+                    f.write("\n".join(full_log))
+                    f.write("\n\n--- STATISTICS ---\n")
+                    f.write(f"Total Notes Failed: {stats['failed_notes']}\n")
+                    if stats['first_failed']:
+                        f.write(f"First Failure: {stats['first_failed']}\n")
+                    else:
+                        f.write("First Failure: None\n")
+                st.session_state.generated_log_path = log_path
+                st.session_state.generated_log_name = f"{out_name}_log.txt"
+            else:
+                st.session_state.generated_log_path = None
+
+            progress_bar.progress(100)
+            status_text.text("Finished!")
 
     except Exception as e:
         import traceback
@@ -335,10 +363,23 @@ if generate_pressed:
 
 if 'generated_nbt_path' in st.session_state and os.path.exists(st.session_state.generated_nbt_path):
     st.success("Generation completed successfully!")
-    with open(st.session_state.generated_nbt_path, "rb") as f:
-        st.download_button(
-            label=f"Download {st.session_state.generated_nbt_name}",
-            data=f,
-            file_name=st.session_state.generated_nbt_name,
-            mime=st.session_state.generated_nbt_mime
-        )
+
+    col_dl1, col_dl2 = st.columns(2)
+    with col_dl1:
+        with open(st.session_state.generated_nbt_path, "rb") as f:
+            st.download_button(
+                label=f"Download {st.session_state.generated_nbt_name}",
+                data=f,
+                file_name=st.session_state.generated_nbt_name,
+                mime=st.session_state.generated_nbt_mime
+            )
+
+    if st.session_state.get('generated_log_path') and os.path.exists(st.session_state.generated_log_path):
+        with col_dl2:
+            with open(st.session_state.generated_log_path, "r", encoding="utf-8") as f:
+                st.download_button(
+                    label=f"Download Generation Log",
+                    data=f.read(),
+                    file_name=st.session_state.generated_log_name,
+                    mime="text/plain"
+                )
