@@ -5,6 +5,7 @@ import re
 from core.MusicData import MusicData, prep_data
 from core.StructureGenerator import StructureGenerator
 from core.config import get_export_dir, update_export_dir
+from core.deco_presets import load_deco_presets, save_deco_presets
 
 st.header("Generate NBT Structure")
 
@@ -126,331 +127,104 @@ if not default_out_name:
 
 custom_out_name = st.text_input("Output File Name (without .nbt)", value=default_out_name, disabled=(processor is None))
 
-st.subheader("Decoration Palette")
+st.subheader("Decoration Settings")
 
-with st.expander("ℹ️ Comment formater les blocs de décoration ?"):
-    st.markdown("""
-Le format attendu pour les blocs de décoration permet de configurer 3 choses en même temps : **le nom du bloc**, **ses propriétés** (états de bloc comme l'orientation, s'il est allumé, l'âge, etc.), et **son poids** pour les probabilités d'apparition.
+def parse_blocks(block_str):
+    if not block_str.strip():
+        return {}
+    result = {}
+    items = re.split(r',\s*(?![^\[]*\])', block_str)
+    for item in items:
+        parts = item.rsplit(':', 1)
+        if len(parts) == 2:
+            name = parts[0].strip()
+            try:
+                weight = float(parts[1].strip())
+                if not name.startswith("minecraft:"):
+                    name = f"minecraft:{name}"
+                result[name] = weight
+            except ValueError:
+                pass
+    return result
 
-### Format général :
-`minecraft:nom_du_bloc[propriete=valeur,autre=valeur]:poids`
-
-### Exemples d'utilisation :
-
-**1. Un bloc simple avec un poids de 80 :**
-> `stone:80`
-*(Le "minecraft:" est ajouté automatiquement s'il manque, et s'il n'y a pas de crochets, aucune propriété n'est définie)*
-
-**2. Un bloc avec des propriétés (ex: un escalier orienté vers l'Est) :**
-> `oak_stairs[facing=east]:50`
-
-**3. Un bloc avec plusieurs propriétés (ex: un feu de camp éteint et face au Nord) :**
-> `campfire[lit=false,facing=north]:100`
-
-**4. Un mélange de plusieurs blocs avec et sans propriétés :**
-> `stone:50, oak_leaves[distance=7,persistent=true]:30, dirt:20`
-
-**Remarque :** Assure-toi de ne pas mettre d'espaces à l'intérieur des crochets `[...]` autour du `=` pour éviter des soucis avec la génération Minecraft.
-    """)
-
-palettes = {}
-
-DECO_PRESET_FILE = "decoration_presets.json"
-
-def load_deco_presets():
-    import json
-    p = {}
-    if os.path.exists(DECO_PRESET_FILE):
-        try:
-            with open(DECO_PRESET_FILE, "r") as f:
-                p = json.load(f)
-        except Exception:
-            pass
-
-    dirty = False
-
-    new_defaults = {
-        "Default_Village": {
-            "num_bands": 3,
-            "bands": [
-                {"dist": 3, "blocks": "cobblestone:70, mossy_cobblestone:30"},
-                {"dist": 6, "blocks": "dirt_path:80, coarse_dirt:20", "top_prob": 0.05, "top_blocks": "lantern[hanging=false]:100"},
-                {"dist": 12, "blocks": "grass_block:100", "top_prob": 0.15, "top_blocks": "poppy:30, dandelion:30, cornflower:40"}
-            ]
-        },
-        "Deep_Forest": {
-            "redstone_band": {"enabled": True, "blocks": "spruce_log[axis=y]:100", "top_prob": 0.0, "top_blocks": ""},
-            "num_bands": 3,
-            "bands": [
-                {"dist": 3, "blocks": "moss_block:80, rooted_dirt:20", "top_prob": 0.2, "top_blocks": "fern:70, large_fern[half=lower]:30"},
-                {"dist": 7, "blocks": "podzol:60, coarse_dirt:40", "top_prob": 0.05, "top_blocks": "campfire[lit=true,facing=north]:50, brown_mushroom:50"},
-                {"dist": 14, "blocks": "grass_block:100", "top_prob": 0.1, "top_blocks": "spruce_sapling:30, sweet_berry_bush[age=3]:70"}
-            ]
-        },
-        "Desert_Oasis": {
-            "num_bands": 3,
-            "bands": [
-                {"dist": 3, "blocks": "cut_sandstone:70, chiseled_sandstone:30"},
-                {"dist": 8, "blocks": "sand:70, smooth_sandstone:30", "top_prob": 0.05, "top_blocks": "dead_bush:100"},
-                {"dist": 15, "blocks": "sand:90, red_sand:10", "top_prob": 0.1, "top_blocks": "cactus[age=5]:30, red_tulip:70"}
-            ]
-        },
-        "Crimson_Fortress": {
-            "redstone_band": {"enabled": True, "blocks": "magma_block:100", "top_prob": 0.0, "top_blocks": ""},
-            "num_bands": 3,
-            "bands": [
-                {"dist": 3, "blocks": "polished_blackstone_bricks:70, cracked_polished_blackstone_bricks:30", "top_prob": 0.1, "top_blocks": "soul_lantern[hanging=false]:100"},
-                {"dist": 7, "blocks": "crimson_nylium:80, netherrack:20", "top_prob": 0.2, "top_blocks": "crimson_roots:60, crimson_fungus:40"},
-                {"dist": 15, "blocks": "netherrack:90, soul_soil:10", "top_prob": 0.05, "top_blocks": "fire[age=0]:100"}
-            ]
-        },
-        "Ancient_City": {
-            "redstone_band": {"enabled": True, "blocks": "sculk_catalyst:100", "top_prob": 0.0, "top_blocks": ""},
-            "num_bands": 3,
-            "bands": [
-                {"dist": 4, "blocks": "polished_deepslate:80, deepslate_tiles:20", "top_prob": 0.0, "top_blocks": ""},
-                {"dist": 9, "blocks": "sculk:100", "top_prob": 0.3, "top_blocks": "sculk_sensor[sculk_sensor_phase=active]:30, sculk_shrieker[can_summon=false]:10, sculk_vein[up=true]:60"},
-                {"dist": 15, "blocks": "deepslate:70, cobbled_deepslate:30", "top_prob": 0.0, "top_blocks": ""}
-            ]
-        },
-        "Amethyst_Geode": {
-            "num_bands": 4,
-            "bands": [
-                {"dist": 2, "blocks": "smooth_basalt:100"},
-                {"dist": 5, "blocks": "calcite:100"},
-                {"dist": 10, "blocks": "amethyst_block:80, budding_amethyst:20", "top_prob": 0.3, "top_blocks": "amethyst_cluster[facing=up]:40, large_amethyst_bud[facing=up]:30, medium_amethyst_bud[facing=up]:30"},
-                {"dist": 14, "blocks": "tuff:100"}
-            ]
-        },
-        "Warped_Magic": {
-            "redstone_band": {"enabled": True, "blocks": "pearlescent_froglight[axis=y]:100", "top_prob": 0.0, "top_blocks": ""},
-            "num_bands": 3,
-            "bands": [
-                {"dist": 4, "blocks": "warped_planks:80, stripped_warped_stem[axis=y]:20"},
-                {"dist": 9, "blocks": "warped_nylium:100", "top_prob": 0.25, "top_blocks": "warped_roots:50, nether_sprouts:30, warped_fungus:20"},
-                {"dist": 15, "blocks": "blackstone:60, obsidian:40"}
-            ]
-        },
-        "Cherry_Grove": {
-            "num_bands": 4,
-            "bands": [
-                {"dist": 3, "blocks": "cherry_planks:70, stripped_cherry_log[axis=y]:30", "top_prob": 0.1, "top_blocks": "pink_candle[candles=3,lit=true]:100"},
-                {"dist": 6, "blocks": "dirt_path:100", "top_prob": 0.0, "top_blocks": ""},
-                {"dist": 11, "blocks": "moss_block:60, grass_block:40", "top_prob": 0.5, "top_blocks": "pink_petals[flower_amount=4,facing=north]:40, pink_petals[flower_amount=2,facing=south]:40, cherry_sapling:20"},
-                {"dist": 18, "blocks": "grass_block:100", "top_prob": 0.1, "top_blocks": "peony[half=lower]:50, lilac[half=lower]:50"}
-            ]
-        },
-        "Lush_Glow": {
-            "redstone_band": {"enabled": True, "blocks": "shroomlight:100", "top_prob": 0.0, "top_blocks": ""},
-            "num_bands": 4,
-            "bands": [
-                {"dist": 3, "blocks": "ochre_froglight[axis=y]:20, moss_block:80", "top_prob": 0.0, "top_blocks": ""},
-                {"dist": 8, "blocks": "moss_block:100", "top_prob": 0.4, "top_blocks": "flowering_azalea:40, azalea:40, spore_blossom:20"},
-                {"dist": 13, "blocks": "rooted_dirt:60, moss_block:40", "top_prob": 0.15, "top_blocks": "big_dripleaf[facing=north,tilt=none]:100"},
-                {"dist": 18, "blocks": "tuff:60, stone:40", "top_prob": 0.0, "top_blocks": ""}
-            ]
-        }
-    }
-
-    for key, data in new_defaults.items():
-        if key not in p:
-            p[key] = data
-            dirty = True
-
-    if dirty:
-        with open(DECO_PRESET_FILE, "w") as f:
-            json.dump(p, f, indent=4)
-    return p
-
-def save_deco_presets(p):
-    import json
-    with open(DECO_PRESET_FILE, "w") as f:
-        json.dump(p, f, indent=4)
-
-if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
-    deco_presets = load_deco_presets()
-
-    col_p1, col_p2, col_p3, col_p4 = st.columns([2, 1, 2, 1])
-    preset_names = list(deco_presets.keys())
-    default_idx = preset_names.index("Default_Village") if "Default_Village" in preset_names else 0
-    selected_preset_name = col_p1.selectbox("Load Decoration Preset", preset_names, index=default_idx, label_visibility="collapsed", disabled=(processor is None))
-
-    if col_p2.button("Load", key="load_deco", use_container_width=True, disabled=(processor is None)):
-        preset = deco_presets[selected_preset_name]
-        st.session_state.current_deco_config = preset
-
-        # Explicitly inject preset values into session_state to force widgets to update
-        st.session_state["deco_y_offset"] = preset.get("y_offset", 0)
-        st.session_state["num_bands"] = preset.get("num_bands", 2)
-
-        rs_conf = preset.get("redstone_band", {})
-        st.session_state["rs_enabled"] = rs_conf.get("enabled", False)
-        st.session_state["rs_blocks"] = rs_conf.get("blocks", "glowstone:100")
-        st.session_state["rs_top_prob"] = float(rs_conf.get("top_prob", 0.0))
-        st.session_state["rs_top_blocks"] = rs_conf.get("top_blocks", "")
-
-        min_dist_track = 1
-        for i in range(preset.get("num_bands", 2)):
-            band = preset["bands"][i] if i < len(preset.get("bands", [])) else {}
-            dist_val = band.get("dist", min_dist_track + 5)
-            if dist_val < min_dist_track:
-                dist_val = min_dist_track
-            st.session_state[f"band_dist_{i}"] = dist_val
-            st.session_state[f"band_blocks_{i}"] = band.get("blocks", "stone:100")
-            st.session_state[f"top_prob_{i}"] = float(band.get("top_prob", 0.0))
-            st.session_state[f"top_blocks_{i}"] = band.get("top_blocks", "")
-            min_dist_track = dist_val + 1
-
-        st.rerun()
-
-    if 'current_deco_config' not in st.session_state:
-        st.session_state.current_deco_config = deco_presets["Default_Village"]
-
-    new_preset_name = col_p3.text_input("Save as Preset Name", placeholder="MyPreset", label_visibility="collapsed", key="save_deco_name", disabled=(processor is None))
-    if col_p4.button("Save", key="save_deco", use_container_width=True, disabled=(processor is None)):
-        if new_preset_name.strip():
-            # We will populate the config object right before saving below
-            st.session_state.pending_deco_save = new_preset_name.strip()
-        else:
-            st.error("Please enter a name.")
-
-    current_config = st.session_state.current_deco_config
-
-    st.markdown("### General Settings")
-    deco_y_offset = st.radio("Y-Offset (Relative to Noteblocks)", options=[0, 1], index=current_config.get("y_offset", 0), horizontal=True, key="deco_y_offset", disabled=(processor is None))
-
-    st.markdown("### Redstone Adjacency Band")
-    rs_config = current_config.get("redstone_band", {"enabled": False, "blocks": "glowstone:100", "top_prob": 0.0, "top_blocks": ""})
-
-    rs_enabled = st.toggle("Enable Redstone Adjacency Decor (Strictly 1 block Orthogonal)", value=rs_config.get("enabled", False), key="rs_enabled", disabled=(processor is None))
-    if rs_enabled:
-        col_rs1, col_rs2 = st.columns(2)
-        with col_rs1:
-            rs_blocks = st.text_input("Floor Blocks (y=-1)", value=rs_config.get("blocks", "glowstone:100"), key="rs_blocks", disabled=(processor is None))
-        with col_rs2:
-            st.write("") # spacing
-
-        col_rs3, col_rs4 = st.columns(2)
-        with col_rs3:
-            rs_top_prob = st.slider("Top Decor Probability", 0.0, 1.0, float(rs_config.get("top_prob", 0.0)), key="rs_top_prob", disabled=(processor is None))
-        with col_rs4:
-            rs_top_blocks = st.text_input("Top Blocks (y=0)", value=rs_config.get("top_blocks", ""), key="rs_top_blocks", disabled=(processor is None))
-    else:
-        rs_blocks = rs_config.get("blocks", "glowstone:100")
-        rs_top_prob = rs_config.get("top_prob", 0.0)
-        rs_top_blocks = rs_config.get("top_blocks", "")
-
-    redstone_band_data = {
-        "enabled": rs_enabled,
-        "blocks": rs_blocks,
-        "top_prob": rs_top_prob,
-        "top_blocks": rs_top_blocks
-    }
-
-    st.markdown("### Floor Distance Bands")
-
-    num_bands = st.slider("Number of Distance Bands", 1, 20, current_config.get("num_bands", 2), key="num_bands", disabled=(processor is None))
-
-    bands_data = []
-    min_dist = 1
-
-    for i in range(num_bands):
-        st.markdown(f"**Band {i+1}**")
-        col_dist, col_blocks = st.columns(2)
-
-        # Load defaults from config if available, else fallback
-        default_dist = current_config["bands"][i]["dist"] if i < len(current_config.get("bands", [])) else min_dist + 5
-        default_blocks = current_config["bands"][i]["blocks"] if i < len(current_config.get("bands", [])) else "stone:100"
-        default_top_prob = current_config["bands"][i].get("top_prob", 0.0) if i < len(current_config.get("bands", [])) else 0.0
-        default_top_blocks = current_config["bands"][i].get("top_blocks", "") if i < len(current_config.get("bands", [])) else ""
-
-        # Ensure default_dist is strictly greater than min_dist to prevent errors
-        if default_dist < min_dist:
-            default_dist = min_dist
-
-        with col_dist:
-            # Fix Streamlit out-of-bounds error by ensuring max_value scales with min_dist
-            max_val = max(100, min_dist + 20)
-            band_dist = st.slider(f"Max Distance", min_dist, max_val, default_dist, key=f"band_dist_{i}", disabled=(processor is None))
-        with col_blocks:
-            band_blocks = st.text_input(f"Floor Blocks (y=-1)", value=default_blocks, key=f"band_blocks_{i}", disabled=(processor is None))
-
-        col_top1, col_top2 = st.columns(2)
-        with col_top1:
-            top_prob = st.slider(f"Top Decor Probability", 0.0, 1.0, float(default_top_prob), key=f"top_prob_{i}", disabled=(processor is None))
-        with col_top2:
-            top_blocks = st.text_input(f"Top Blocks (y=0)", value=default_top_blocks, key=f"top_blocks_{i}", disabled=(processor is None))
-
-        bands_data.append({
-            "dist": band_dist,
-            "blocks": band_blocks,
-            "top_prob": top_prob,
-            "top_blocks": top_blocks
-        })
-
-        # The next band must start at least 1 block further
-        min_dist = band_dist + 1
-
-    # Update current config based on UI values
-    updated_config = {
-        "y_offset": deco_y_offset,
-        "redstone_band": redstone_band_data,
-        "num_bands": num_bands,
-        "bands": bands_data
-    }
-    st.session_state.current_deco_config = updated_config
-
-    if st.session_state.get("pending_deco_save"):
-        preset_name = st.session_state.pending_deco_save
-        deco_presets[preset_name] = updated_config
-        save_deco_presets(deco_presets)
-        st.success(f"Saved preset {preset_name}")
-        st.session_state.pending_deco_save = None
-
-    def parse_blocks(block_str):
-        if not block_str.strip():
-            return {}
-        result = {}
-
-        # Split on commas, EXCEPT if they are inside brackets [...]
-        items = re.split(r',\s*(?![^\[]*\])', block_str)
-
-        for item in items:
-            parts = item.rsplit(':', 1)
-            if len(parts) == 2:
-                name = parts[0].strip()
-                try:
-                    weight = float(parts[1].strip())
-                    if not name.startswith("minecraft:"):
-                        name = f"minecraft:{name}"
-                    result[name] = weight
-                except ValueError:
-                    pass
-        return result
-
+def config_to_palette(preset):
+    if not preset:
+        return {}
     parsed_bands = []
-    for bd in bands_data:
+    for bd in preset.get("bands", []):
         parsed_bands.append({
-            "max_distance": bd["dist"],
-            "blocks": parse_blocks(bd["blocks"]),
+            "max_distance": bd.get("dist", 1),
+            "blocks": parse_blocks(bd.get("blocks", "")),
             "top_decor": {
-                "probability": bd["top_prob"],
-                "blocks": parse_blocks(bd["top_blocks"])
+                "probability": bd.get("top_prob", 0.0),
+                "blocks": parse_blocks(bd.get("top_blocks", ""))
             }
         })
-
-    palettes = {
-        "y_offset": deco_y_offset,
+    rs_data = preset.get("redstone_band", {})
+    return {
+        "y_offset": preset.get("y_offset", 0),
         "redstone_band": {
-            "enabled": redstone_band_data["enabled"],
-            "blocks": parse_blocks(redstone_band_data["blocks"]),
+            "enabled": rs_data.get("enabled", False),
+            "blocks": parse_blocks(rs_data.get("blocks", "")),
             "top_decor": {
-                "probability": redstone_band_data["top_prob"],
-                "blocks": parse_blocks(redstone_band_data["top_blocks"])
+                "probability": rs_data.get("top_prob", 0.0),
+                "blocks": parse_blocks(rs_data.get("top_blocks", ""))
             }
         },
         "distance_bands": parsed_bands
     }
+
+palettes = {}
+
+if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
+    deco_presets = load_deco_presets()
+    preset_names = list(deco_presets.keys())
+
+    deco_mode = st.radio("Decoration Mode", ["Simple", "Advanced"], horizontal=True, disabled=(processor is None))
+
+    if deco_mode == "Simple":
+        st.info("In Simple mode, you select one palette. To create or edit palettes, please use the **4. Edit Decoration Palettes** tab.")
+        default_idx = preset_names.index("Default_Village") if "Default_Village" in preset_names else 0
+        selected_preset = st.selectbox("Select Decoration Palette", preset_names, index=default_idx, disabled=(processor is None))
+        palettes = {
+            "mode": "simple",
+            "palette": config_to_palette(deco_presets[selected_preset])
+        }
+    else:
+        st.info("In Advanced mode, you can select multiple palettes and transition between them along the X axis. The first palette starts at X=0.")
+
+        num_palettes = st.number_input("Number of Palettes", min_value=1, max_value=10, value=2, disabled=(processor is None))
+
+        advanced_palettes = []
+        for i in range(int(num_palettes)):
+            st.markdown(f"**Palette {i+1}**")
+            col_p, col_x, col_w = st.columns(3)
+            with col_p:
+                p_name = st.selectbox(f"Palette {i+1}", preset_names, key=f"adv_p_{i}", disabled=(processor is None))
+            with col_x:
+                if i == 0:
+                    start_x = 0
+                    st.text_input("Start Position (X)", value="0", disabled=True, key=f"adv_x_{i}")
+                else:
+                    start_x = st.number_input("Start Position (X Coordinate)", value=i*50, key=f"adv_x_{i}", disabled=(processor is None))
+            with col_w:
+                if i == 0:
+                    trans_w = 0
+                    st.text_input("Transition Width", value="0", disabled=True, key=f"adv_w_{i}")
+                else:
+                    trans_w = st.number_input("Transition Width (X Blocks)", min_value=1, value=10, key=f"adv_w_{i}", disabled=(processor is None))
+
+            advanced_palettes.append({
+                "start_x": start_x,
+                "transition_width": trans_w,
+                "palette": config_to_palette(deco_presets[p_name])
+            })
+
+        palettes = {
+            "mode": "advanced",
+            "palettes": advanced_palettes
+        }
+
 
 
 
