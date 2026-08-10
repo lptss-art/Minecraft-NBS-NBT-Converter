@@ -350,8 +350,6 @@ class Layout3Brick(LayoutBase):
             'is_half': is_half
         }
         
-        self.current_exploration_budget = getattr(self, "l3_attempts", 1000)
-        
         success = self.start_pathfinding(
             target_data,
             self.impossible_redstone, self.impossible_notes, self.anchor_manager,
@@ -594,6 +592,7 @@ class Layout3Brick(LayoutBase):
 
         # On lance le DFS en partant de l'ancre la plus prometteuse
         for start_anchor in valid_anchors:
+            self.current_exploration_budget = getattr(self, "l3_attempts", 1000)
             if self._dfs_step(start_anchor, target_data, current_redstone, current_notes, current_anchors, commands_list):
                 return True
 
