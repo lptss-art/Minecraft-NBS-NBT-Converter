@@ -105,6 +105,8 @@ elif layout_type == "Layout 3":
     col_l1, col_l2 = st.columns(2)
     layout_params["l3_base"] = col_l1.text_input("Support Block (Redstone, etc.)", value="minecraft:oak_planks")
     layout_params["l3_attempts"] = col_l2.number_input("Max Attempts", value=1000, step=100)
+    col_l5 = st.columns(1)[0]
+    layout_params["l3_time_penalty"] = col_l5.number_input("Time Penalty Coef", value=10.0, step=1.0)
 
     col_l3, col_l4 = st.columns(2)
     layout_params["l3_speed"] = col_l3.number_input("X Speed (blocks/tick)", value=4, step=1)
@@ -294,13 +296,34 @@ if generate_pressed:
 
             if "Layout3" in full_layout:
                 st.write("Layout 3 Generation Progress:")
+                stats_container = st.empty()
                 log_container = st.empty()
                 if 'log_lines' not in st.session_state:
                     st.session_state.log_lines = []
                 else:
                     st.session_state.log_lines.clear()
 
+                # We can also track total notes if we parse it from the messages
+                ui_stats = {"total": 0, "processed": 0, "success": 0, "fail": 0}
+
                 def pc(msg, end="\n"):
+                    # Try to parse total notes from the debug messages
+                    if "Note " in msg and "/" in msg:
+                        try:
+                            parts = msg.split("Note ")[1].split(" ")[0].split("/")
+                            if len(parts) == 2:
+                                ui_stats["processed"] = int(parts[0])
+                                ui_stats["total"] = int(parts[1])
+                        except:
+                            pass
+
+                    if "Succès pour la note" in msg:
+                        ui_stats["success"] += 1
+                    elif "Échec critique" in msg:
+                        ui_stats["fail"] += 1
+
+                    stats_container.markdown(f"**Notes processed:** {ui_stats['processed']}/{ui_stats['total']} | **Success:** {ui_stats['success']} | **Failed:** {ui_stats['fail']}")
+
                     # UI Log Handling
                     if end == "\r" and len(st.session_state.log_lines) > 0:
                         st.session_state.log_lines[-1] = msg

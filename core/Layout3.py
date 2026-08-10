@@ -34,7 +34,7 @@ class Anchor:
         self.is_half = is_half
         self.free_directions = list(allowed_directions)
 
-    def get_score(self, target_x, target_z, target_tick, target_is_half):
+    def get_score(self, target_x, target_z, target_tick, target_is_half, time_penalty_coef=10.0):
         """
         Calcule le coût de cette ancre (le plus petit score est le meilleur).
         Utilise une distance classique (Euclidienne) et favorise fortement le bon tick ET demi-tick.
@@ -64,7 +64,7 @@ class Anchor:
                 time_penalty = -5.0
         elif tick_diff > 0:
             # En retard : on pénalise. 
-            time_penalty = 10 * tick_diff
+            time_penalty = time_penalty_coef * tick_diff
         else:
             # Trop tard (tick dépassé) : ce chemin est temporellement impossible.
             time_penalty = float('inf')
@@ -135,7 +135,8 @@ class AnchorManagerLayer:
         if not valid_anchors:
             return None
             
-        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick'], target_data['is_half']))
+        time_penalty_coef = getattr(self, 'l3_time_penalty', 10.0)
+        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick'], target_data['is_half'], time_penalty_coef))
         return valid_anchors[0]
 
     def get_free_directions(self, anchor):
@@ -588,7 +589,8 @@ class Layout3Brick(LayoutBase):
             return False
 
         # On trie les ancres globales UNE SEULE FOIS pour commencer par la meilleure
-        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick'], target_data['is_half']))
+        time_penalty_coef = getattr(self, 'l3_time_penalty', 10.0)
+        valid_anchors.sort(key=lambda a: a.get_score(target_data['x'], target_data['z'], target_data['tick'], target_data['is_half'], time_penalty_coef))
 
         # On lance le DFS en partant de l'ancre la plus prometteuse
         for start_anchor in valid_anchors:
@@ -841,12 +843,13 @@ class Layout3Track(Brick):
     def __init__(self):
         super().__init__()
 
-    def build_sequence(self, df_notes, progress_callback=None, force_positive_coords=False, l3_base="minecraft:oak_planks", l3_attempts=1000, l3_speed=4, l3_prob=0.3, **kwargs):
+    def build_sequence(self, df_notes, progress_callback=None, force_positive_coords=False, l3_base="minecraft:oak_planks", l3_attempts=1000, l3_speed=4, l3_prob=0.3, l3_time_penalty=10.0, **kwargs):
         brick = Layout3Brick(force_positive_coords=force_positive_coords)
         brick.l3_base = l3_base
         brick.l3_attempts = l3_attempts
         brick.l3_speed = l3_speed
         brick.l3_prob = l3_prob
+        brick.l3_time_penalty = l3_time_penalty
         brick.progress_callback = progress_callback
         
         # --- 1. PRÉPARATION DU DEBUG ---
