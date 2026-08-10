@@ -67,6 +67,29 @@ class StructureGenerator:
         # Sort by start_x just in case
         sorted_palettes = sorted(adv_palettes, key=lambda p: p["start_x"])
 
+        loop = palettes_config.get("loop", False)
+
+        if loop and len(sorted_palettes) > 0:
+            last_p = sorted_palettes[-1]
+            last_start_x = last_p["start_x"]
+
+            loop_dist = palettes_config.get("loop_distance", 50)
+            loop_trans = palettes_config.get("loop_transition", 10)
+
+            # The total length of one full cycle is the start of the last palette
+            # PLUS the distance it remains active, PLUS the transition back to the first.
+            cycle_length = last_start_x + loop_dist + loop_trans
+            if cycle_length > 0:
+                x_coord = x_coord % cycle_length
+
+                # Check if we are in the wrap-around transition zone
+                if x_coord >= last_start_x + loop_dist:
+                    progress = (x_coord - (last_start_x + loop_dist)) / loop_trans
+                    return [
+                        (last_p["palette"], 1.0 - progress),
+                        (sorted_palettes[0]["palette"], progress)
+                    ]
+
         # Find the most recently started palette
         current_idx = 0
         for i, p in enumerate(sorted_palettes):

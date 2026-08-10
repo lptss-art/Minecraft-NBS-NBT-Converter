@@ -222,9 +222,22 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
                 "palette": config_to_palette(deco_presets[p_name])
             })
 
+        loop_palettes = st.toggle("Loop Palettes", value=False, disabled=(processor is None))
+        loop_dist = 0
+        loop_trans = 0
+        if loop_palettes:
+            col_l1, col_l2 = st.columns(2)
+            with col_l1:
+                loop_dist = st.number_input("Distance before looping (X Blocks)", min_value=1, value=50, disabled=(processor is None))
+            with col_l2:
+                loop_trans = st.number_input("Loop Transition Width (X Blocks)", min_value=1, value=10, disabled=(processor is None))
+
         palettes = {
             "mode": "advanced",
-            "palettes": advanced_palettes
+            "palettes": advanced_palettes,
+            "loop": loop_palettes,
+            "loop_distance": loop_dist,
+            "loop_transition": loop_trans
         }
 
 
