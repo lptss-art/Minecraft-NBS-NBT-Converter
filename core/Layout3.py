@@ -849,6 +849,7 @@ class Layout3Track(Brick):
         brick.l3_speed = l3_speed
         brick.l3_prob = l3_prob
         brick.l3_time_penalty = l3_time_penalty
+        brick.anchor_manager.l3_time_penalty = l3_time_penalty
         brick.progress_callback = progress_callback
         
         # --- 1. PRÉPARATION DU DEBUG ---

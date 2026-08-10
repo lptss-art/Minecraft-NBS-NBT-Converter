@@ -64,60 +64,56 @@ class StructureGenerator:
         if not adv_palettes:
             return []
 
-        # Sort by start_x just in case
-        sorted_palettes = sorted(adv_palettes, key=lambda p: p["start_x"])
-
         loop = palettes_config.get("loop", False)
 
-        if loop and len(sorted_palettes) > 0:
-            last_p = sorted_palettes[-1]
-            last_start_x = last_p["start_x"]
+        # Construct timeline
+        timeline = [] # list of (start_x, end_x, type, pal1, pal2)
+        current_x = 0
 
-            loop_dist = palettes_config.get("loop_distance", 50)
-            loop_trans = palettes_config.get("loop_transition", 10)
+        for i, p in enumerate(adv_palettes):
+            trans_w = p.get("transition_width", 0)
+            length = p.get("length", 50)
 
-            # The total length of one full cycle is the start of the last palette
-            # PLUS the distance it remains active, PLUS the transition back to the first.
-            cycle_length = last_start_x + loop_dist + loop_trans
-            if cycle_length > 0:
-                x_coord = x_coord % cycle_length
+            # Transition phase
+            if trans_w > 0:
+                if i == 0:
+                    if loop:
+                        prev_pal = adv_palettes[-1]["palette"]
+                    else:
+                        prev_pal = p["palette"] # Should be 0 trans width anyway if not looping
+                else:
+                    prev_pal = adv_palettes[i-1]["palette"]
 
-                # Check if we are in the wrap-around transition zone
-                if x_coord >= last_start_x + loop_dist:
-                    progress = (x_coord - (last_start_x + loop_dist)) / loop_trans
-                    return [
-                        (last_p["palette"], 1.0 - progress),
-                        (sorted_palettes[0]["palette"], progress)
-                    ]
+                timeline.append((current_x, current_x + trans_w, "transition", prev_pal, p["palette"]))
+                current_x += trans_w
 
-        # Find the most recently started palette
-        current_idx = 0
-        for i, p in enumerate(sorted_palettes):
-            if p["start_x"] <= x_coord:
-                current_idx = i
-            else:
-                break
+            # Solid phase
+            timeline.append((current_x, current_x + length, "solid", p["palette"], None))
+            current_x += length
 
-        # If we are at the very first palette, there's no previous palette to transition from
-        if current_idx == 0:
-            return [(sorted_palettes[0]["palette"], 1.0)]
+        cycle_length = current_x
 
-        current_palette = sorted_palettes[current_idx]
-        trans_start = current_palette["start_x"]
-        trans_width = current_palette["transition_width"]
+        if cycle_length == 0:
+            return [(adv_palettes[-1]["palette"], 1.0)]
 
-        # If we have passed the transition zone, it's 100% the current palette
-        if x_coord >= trans_start + trans_width:
-            return [(current_palette["palette"], 1.0)]
+        if loop:
+            x_coord = x_coord % cycle_length
+        else:
+            if x_coord >= cycle_length:
+                return [(adv_palettes[-1]["palette"], 1.0)]
 
-        # Otherwise, we are in the transition zone from the previous palette to the current palette
-        prev_palette = sorted_palettes[current_idx - 1]
+        # Find which region we are in
+        for region in timeline:
+            start_x, end_x, r_type, p1, p2 = region
+            if start_x <= x_coord < end_x:
+                if r_type == "solid":
+                    return [(p1, 1.0)]
+                else:
+                    trans_w = end_x - start_x
+                    progress = (x_coord - start_x) / trans_w
+                    return [(p1, 1.0 - progress), (p2, progress)]
 
-        progress = (x_coord - trans_start) / trans_width
-        return [
-            (prev_palette["palette"], 1.0 - progress),
-            (current_palette["palette"], progress)
-        ]
+        return [(adv_palettes[-1]["palette"], 1.0)]
 
     def apply_decoration(self):
         """Applies distance-based floor and random top decorations to the generated structure."""

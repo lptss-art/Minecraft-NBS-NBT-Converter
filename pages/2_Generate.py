@@ -195,51 +195,36 @@ if st.toggle("Apply Decorations", value=True, disabled=(processor is None)):
             "palette": config_to_palette(deco_presets[selected_preset])
         }
     else:
-        st.info("In Advanced mode, you can select multiple palettes and transition between them along the X axis. The first palette starts at X=0.")
+        st.info("In Advanced mode, you define a sequence of palettes. For each palette, specify how long it is active (Length), and how long it takes to transition into it from the previous one. If 'Loop Palettes' is enabled, the sequence will repeat infinitely, using the transition width of Palette 1 to blend back from the last palette.")
 
+        loop_palettes = st.toggle("Loop Palettes", value=False, disabled=(processor is None))
         num_palettes = st.number_input("Number of Palettes", min_value=1, max_value=10, value=2, disabled=(processor is None))
 
         advanced_palettes = []
         for i in range(int(num_palettes)):
             st.markdown(f"**Palette {i+1}**")
-            col_p, col_x, col_w = st.columns(3)
+            col_p, col_l, col_w = st.columns(3)
             with col_p:
                 p_name = st.selectbox(f"Palette {i+1}", preset_names, key=f"adv_p_{i}", disabled=(processor is None))
-            with col_x:
-                if i == 0:
-                    start_x = 0
-                    st.text_input("Start Position (X)", value="0", disabled=True, key=f"adv_x_{i}")
-                else:
-                    start_x = st.number_input("Start Position (X Coordinate)", value=i*50, key=f"adv_x_{i}", disabled=(processor is None))
+            with col_l:
+                p_length = st.number_input("Palette Length (X Blocks)", min_value=1, value=50, key=f"adv_l_{i}", disabled=(processor is None))
             with col_w:
-                if i == 0:
+                if i == 0 and not loop_palettes:
                     trans_w = 0
                     st.text_input("Transition Width", value="0", disabled=True, key=f"adv_w_{i}")
                 else:
                     trans_w = st.number_input("Transition Width (X Blocks)", min_value=1, value=10, key=f"adv_w_{i}", disabled=(processor is None))
 
             advanced_palettes.append({
-                "start_x": start_x,
+                "length": p_length,
                 "transition_width": trans_w,
                 "palette": config_to_palette(deco_presets[p_name])
             })
 
-        loop_palettes = st.toggle("Loop Palettes", value=False, disabled=(processor is None))
-        loop_dist = 0
-        loop_trans = 0
-        if loop_palettes:
-            col_l1, col_l2 = st.columns(2)
-            with col_l1:
-                loop_dist = st.number_input("Distance before looping (X Blocks)", min_value=1, value=50, disabled=(processor is None))
-            with col_l2:
-                loop_trans = st.number_input("Loop Transition Width (X Blocks)", min_value=1, value=10, disabled=(processor is None))
-
         palettes = {
             "mode": "advanced",
             "palettes": advanced_palettes,
-            "loop": loop_palettes,
-            "loop_distance": loop_dist,
-            "loop_transition": loop_trans
+            "loop": loop_palettes
         }
 
 
