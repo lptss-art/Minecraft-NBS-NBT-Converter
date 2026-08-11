@@ -54,6 +54,67 @@ class StructureGenerator:
 
         self.apply_decoration()
 
+    def get_active_palettes(self, x_coord, palettes_config):
+        mode = palettes_config.get("mode", "simple")
+
+        if mode == "simple":
+            return [(palettes_config.get("palette", palettes_config), 1.0)]
+
+        adv_palettes = palettes_config.get("palettes", [])
+        if not adv_palettes:
+            return []
+
+        loop = palettes_config.get("loop", False)
+
+        # Construct timeline
+        timeline = [] # list of (start_x, end_x, type, pal1, pal2)
+        current_x = 0
+
+        for i, p in enumerate(adv_palettes):
+            trans_w = p.get("transition_width", 0)
+            length = p.get("length", 50)
+
+            # Transition phase
+            if trans_w > 0:
+                if i == 0:
+                    if loop:
+                        prev_pal = adv_palettes[-1]["palette"]
+                    else:
+                        prev_pal = p["palette"] # Should be 0 trans width anyway if not looping
+                else:
+                    prev_pal = adv_palettes[i-1]["palette"]
+
+                timeline.append((current_x, current_x + trans_w, "transition", prev_pal, p["palette"]))
+                current_x += trans_w
+
+            # Solid phase
+            timeline.append((current_x, current_x + length, "solid", p["palette"], None))
+            current_x += length
+
+        cycle_length = current_x
+
+        if cycle_length == 0:
+            return [(adv_palettes[-1]["palette"], 1.0)]
+
+        if loop:
+            x_coord = x_coord % cycle_length
+        else:
+            if x_coord >= cycle_length:
+                return [(adv_palettes[-1]["palette"], 1.0)]
+
+        # Find which region we are in
+        for region in timeline:
+            start_x, end_x, r_type, p1, p2 = region
+            if start_x <= x_coord < end_x:
+                if r_type == "solid":
+                    return [(p1, 1.0)]
+                else:
+                    trans_w = end_x - start_x
+                    progress = (x_coord - start_x) / trans_w
+                    return [(p1, 1.0 - progress), (p2, progress)]
+
+        return [(adv_palettes[-1]["palette"], 1.0)]
+
     def apply_decoration(self):
         """Applies distance-based floor and random top decorations to the generated structure."""
         if not self.palettes or not any(self.palettes.values()):
@@ -65,38 +126,28 @@ class StructureGenerator:
         if not self.global_data.blocks:
             return
 
-        # Old layout 1 can skip distance based logic or use it, let's allow it but the focus is 2 & 3.
-        # It's generally fine for all, but user requested for layout 2 and 3.
         if "Layout1" in self.layout_type:
-            # We can still apply it if we want, or fall back to an empty return if not requested.
-            # But the prompt says "on va faire la logique pour les layout 2 et 3".
-            # We'll just apply it universally since the logic relies on coordinates.
             pass
 
-        # Parse palettes
-        # Expected structure in palettes (updated for the new UI):
-        # palettes = {
-        #    "distance_bands": [
-        #        {"max_distance": 5, "blocks": {"minecraft:stone": 80}, "top_decor": {"blocks": {}, "probability": 0}},
-        #        {"max_distance": 15, "blocks": {"minecraft:grass_block": 100}, "top_decor": {"blocks": {"minecraft:poppy": 100}, "probability": 0.2}}
-        #    ]
-        # }
+        mode = self.palettes.get("mode", "simple")
 
-        distance_bands = self.palettes.get("distance_bands", [])
-        redstone_band = self.palettes.get("redstone_band", None)
-        y_offset = self.palettes.get("y_offset", 0)
+        # Get max dist across all palettes to know how far to BFS
+        max_dist = 0
+        if mode == "advanced":
+            for p in self.palettes.get("palettes", []):
+                pal = p.get("palette", {})
+                bands = pal.get("distance_bands", [])
+                if bands:
+                    m = max([b.get("max_distance", 0) for b in bands])
+                    if m > max_dist: max_dist = m
+        else:
+            pal = self.palettes.get("palette", self.palettes)
+            bands = pal.get("distance_bands", [])
+            if bands:
+                max_dist = max([b.get("max_distance", 0) for b in bands])
 
-        # Fallback to old behavior if distance bands are not defined but old ones are
-        if not distance_bands and self.palettes.get('floor'):
-            # Convert old format to new format
-            blocks = {f"minecraft:{b}": 100/len(self.palettes['floor']) for b in self.palettes['floor']}
-            distance_bands = [{"max_distance": 3, "blocks": blocks, "top_decor": {"blocks": {}, "probability": 0.0}}]
-
-        if not distance_bands:
+        if max_dist == 0:
             return
-
-        # Max distance to explore
-        max_dist = max([band["max_distance"] for band in distance_bands])
 
         # Get all base blocks (x, z) and their tick
         occupied_positions = set()
@@ -168,18 +219,35 @@ class StructureGenerator:
                 return b_name, props
             return block_str, {}
 
-        # Sort bands by distance ascending
-        distance_bands.sort(key=lambda x: x["max_distance"])
-
         data_deco = Brick()
 
         for (x, z), (dist, tick) in visited.items():
+            active_pals = self.get_active_palettes(x, self.palettes)
+            if not active_pals:
+                continue
+
+            # Randomly pick a palette if in transition
+            r = random.random()
+            current_weight = 0
+            chosen_pal = active_pals[-1][0] # Default to last
+            for pal, prob in active_pals:
+                current_weight += prob
+                if r <= current_weight:
+                    chosen_pal = pal
+                    break
+
+            distance_bands = chosen_pal.get("distance_bands", [])
+            redstone_band = chosen_pal.get("redstone_band", None)
+            y_offset = chosen_pal.get("y_offset", 0)
+
+            # Sort just in case
+            distance_bands.sort(key=lambda b: b["max_distance"])
+
             selected_band = None
 
             # Check for redstone adjacency first
             is_redstone_adjacent = False
             if redstone_band and redstone_band.get("enabled", False):
-                # strictly 1 block orthogonal (no diagonals, not itself)
                 for dx, dz in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                     if (x + dx, z + dz) in redstone_positions:
                         is_redstone_adjacent = True
@@ -188,7 +256,6 @@ class StructureGenerator:
                 if is_redstone_adjacent:
                     selected_band = redstone_band
 
-            # Find which band this cell belongs to if not overridden by redstone
             if not selected_band:
                 for band in distance_bands:
                     if dist <= band["max_distance"]:
@@ -200,7 +267,6 @@ class StructureGenerator:
 
             floor_block_str = pick_block(selected_band.get("blocks", {}))
             if floor_block_str and floor_block_str != "minecraft:air":
-                # Ensure we don't overwrite any existing block at the target floor layer
                 if (x, -1 - y_offset, z) not in occupied_positions:
                     floor_name, floor_props = parse_block_and_props(floor_block_str)
                     data_deco.add_block(x, -1 - y_offset, z, floor_name, properties=floor_props, tick=tick)

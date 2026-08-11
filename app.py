@@ -5,6 +5,7 @@ st.set_page_config(page_title="NoteBlock Studio to NBT Generator", layout="wide"
 pg = st.navigation([
     st.Page("pages/1_Preprocess.py", title="1. Pre-process NBS", icon="🎵"),
     st.Page("pages/2_Generate.py", title="2. Generate NBT Structure", icon="🧱"),
-    st.Page("pages/3_Debug.py", title="3. Debug & Test Generation", icon="🐛")
+    st.Page("pages/3_Debug.py", title="3. Debug & Test Generation", icon="🐛"),
+    st.Page("pages/4_Palettes.py", title="4. Edit Decoration Palettes", icon="🎨")
 ])
 pg.run()
