@@ -24,3 +24,4 @@ __pycache__/
 # Configuration locale et secrets
 .env
 .ipynb_checkpoints/
+*.bat
